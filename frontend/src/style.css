@@ -1,0 +1,64 @@
+@import "tailwindcss";
+
+@import url('https://fonts.googleapis.com/css2?family=Noto+Sans:wght@400;500;700&family=Space+Grotesk:wght@300;400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap');
+
+@theme {
+    --color-primary: #13c8ec;
+    --color-background-light: #f6f8f8;
+    --color-background-dark: #111718;
+    --color-surface-dark: #1d2628;
+    --color-surface-light: #ffffff;
+    --color-border-dark: #283639;
+    --color-text-secondary: #9db4b9;
+    --color-text-muted: #586e75;
+
+    --font-display: "Space Grotesk", "sans-serif";
+    --font-body: "Noto Sans", "sans-serif";
+
+    --radius-DEFAULT: 0.25rem;
+    --radius-lg: 0.5rem;
+    --radius-xl: 0.75rem;
+    --radius-2xl: 1rem;
+    --radius-full: 9999px;
+}
+
+@layer base {
+    body {
+        @apply bg-background-light dark:bg-background-dark text-background-dark dark:text-white font-display overflow-hidden h-screen w-screen;
+    }
+}
+
+/* Custom scrollbar for webkit browsers */
+::-webkit-scrollbar {
+    width: 6px;
+}
+
+::-webkit-scrollbar-track {
+    @apply bg-background-dark;
+}
+
+::-webkit-scrollbar-thumb {
+    @apply bg-[#283639] rounded-full;
+}
+
+::-webkit-scrollbar-thumb:hover {
+    @apply bg-[#3b4d52];
+}
+
+/* Animation for generating state */
+@keyframes pulse-teal {
+
+    0%,
+    100% {
+        opacity: 1;
+    }
+
+    50% {
+        opacity: 0.5;
+    }
+}
+
+.animate-pulse-teal {
+    animation: pulse-teal 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
