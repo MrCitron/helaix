@@ -25,7 +25,7 @@
 
 @layer base {
     body {
-        @apply bg-background-light dark:bg-background-dark text-background-dark dark:text-white font-display overflow-hidden h-screen w-screen;
+        @apply bg-background-light dark:bg-background-dark text-slate-900 dark:text-white font-display overflow-hidden h-screen w-screen;
     }
 }
 
@@ -35,15 +35,15 @@
 }
 
 ::-webkit-scrollbar-track {
-    @apply bg-background-dark;
+    @apply bg-slate-200 dark:bg-background-dark;
 }
 
 ::-webkit-scrollbar-thumb {
-    @apply bg-[#283639] rounded-full;
+    @apply bg-slate-400 dark:bg-border-dark rounded-full;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-    @apply bg-[#3b4d52];
+    @apply bg-slate-500 dark:bg-[#3b4d52];
 }
 
 /* Animation for generating state */

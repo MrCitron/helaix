@@ -4,7 +4,7 @@ import { GxSaveConfig, GxListModels } from '../../wailsjs/go/main/App';
 function Setup({ config, onSave }) {
     const [apiKey, setApiKey] = useState(config.api_key || '');
     const [provider, setProvider] = useState(config.provider || 'Google');
-    const [model, setModel] = useState(config.model || 'gemini-1.5-flash');
+    const [model, setModel] = useState(config.model || 'gemini-2.5-flash');
     const [outputPath, setOutputPath] = useState(config.output_path || '');
     const [availableModels, setAvailableModels] = useState([]);
     const [loadingModels, setLoadingModels] = useState(false);
@@ -98,19 +98,23 @@ function Setup({ config, onSave }) {
                         />
                         <datalist id="model-options">
                             {availableModels.length > 0 ? (
-                                availableModels.map(m => <option key={m} value={m} />)
+                                availableModels.map(m => {
+                                    const displayName = m.replace('models/', '');
+                                    return <option key={m} value={displayName} />
+                                })
                             ) : (
                                 <>
-                                    <option value="gemini-1.5-flash" />
-                                    <option value="gemini-1.5-pro" />
-                                    <option value="gemini-2.0-flash-exp" />
+                                    <option value="gemini-2.5-flash" />
+                                    <option value="gemini-2.5-pro" />
+                                    <option value="gemini-3-flash-preview" />
+                                    <option value="gemini-3-pro-preview" />
                                 </>
                             )}
                         </datalist>
                         {loadingModels && <div className="absolute right-2 top-2 text-xs text-gray-500">Loading...</div>}
                     </div>
                     <p className="text-xs text-gray-500 mt-1">
-                        If 404 error, try manually typing <code>gemini-1.5-flash-latest</code> or <code>gemini-pro</code>.
+                        Current stable models: <code>gemini-2.5-flash</code> (fast) or <code>gemini-2.5-pro</code> (best quality)
                     </p>
                 </div>
                 <div>

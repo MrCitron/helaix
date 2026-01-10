@@ -23,7 +23,7 @@ jobs:
             file: helaix.exe
           - os: macos-latest
             name: darwin
-            file: HelAIx.app/Contents/MacOS/helaix
+            file: HelAIx.app
     
     runs-on: ${{ matrix.platform.os }}
     

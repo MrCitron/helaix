@@ -53,6 +53,11 @@ function App() {
         loadConfig();
     }, []);
 
+    // Always use dark mode
+    useEffect(() => {
+        document.documentElement.classList.add('dark');
+    }, []);
+
     // Auto-collapse sidebar on resize
     useEffect(() => {
         const handleResize = () => {
@@ -132,7 +137,7 @@ function App() {
     const currentChat = chats.find(c => c.id === currentChatId) || null;
 
     if (loading) return (
-        <div className="bg-[#111718] min-h-screen text-white flex items-center justify-center font-display">
+        <div className="bg-background-light dark:bg-background-dark min-h-screen text-slate-900 dark:text-white flex items-center justify-center font-display">
             <span className="material-symbols-outlined animate-spin text-primary mr-2">sync</span>
             Loading...
         </div>

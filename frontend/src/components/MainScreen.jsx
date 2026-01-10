@@ -147,8 +147,8 @@ const MainScreen = ({ config, chatData, onUpdateChat, onNewChat }) => {
                 <div className="size-16 rounded-3xl bg-primary/10 flex items-center justify-center text-primary mb-6">
                     <span className="material-symbols-outlined text-4xl">graphic_eq</span>
                 </div>
-                <h2 className="text-2xl font-bold text-white mb-2">{t('chat.welcome')}</h2>
-                <p className="text-text-muted mb-8 max-w-md">{t('chat.welcomeHint')}</p>
+                <h2 className="text-2xl font-bold text-slate-900 dark:text-white mb-2">{t('chat.welcome')}</h2>
+                <p className="text-slate-600 dark:text-text-muted mb-8 max-w-md">{t('chat.welcomeHint')}</p>
                 <button
                     onClick={onNewChat}
                     className="flex items-center gap-2 px-6 py-3 bg-primary hover:bg-[#0fb3d4] text-[#111718] font-bold rounded-xl transition-all shadow-lg shadow-primary/20"
@@ -162,7 +162,7 @@ const MainScreen = ({ config, chatData, onUpdateChat, onNewChat }) => {
 
     return (
         <div className="flex-1 flex flex-col h-full bg-background-light dark:bg-background-dark overflow-hidden relative">
-            <header className="h-16 shrink-0 border-b border-[#283639] flex items-center justify-between px-6 bg-[#111718]/90 backdrop-blur-sm z-10">
+            <header className="h-16 shrink-0 border-b border-slate-300 dark:border-border-dark flex items-center justify-between px-6 bg-white/90 dark:bg-background-dark/90 backdrop-blur-sm z-10">
                 <div className="flex items-center gap-3">
                     <div className="size-8 rounded-full bg-primary/10 flex items-center justify-center text-primary border border-primary/20">
                         <span className="material-symbols-outlined text-lg">
@@ -170,48 +170,48 @@ const MainScreen = ({ config, chatData, onUpdateChat, onNewChat }) => {
                         </span>
                     </div>
                     <div className="min-w-0">
-                        <h2 className="text-white text-base font-bold leading-tight truncate">
+                        <h2 className="text-slate-900 dark:text-white text-base font-bold leading-tight truncate">
                             {chatData.name || t('chat.currentChat')}
                         </h2>
                         <div className="flex items-center gap-2">
                             <span className="text-primary text-[10px] font-bold uppercase tracking-widest">
                                 {t('chat.aiName')}
                             </span>
-                            <span className="text-[#2b3d41] text-[10px]">•</span>
-                            <p className="text-text-muted text-[10px]">Active Discussion</p>
+                            <span className="text-slate-400 dark:text-[#2b3d41] text-[10px]">•</span>
+                            <p className="text-slate-600 dark:text-text-muted text-[10px]">Active Discussion</p>
                         </div>
                     </div>
                 </div>
             </header>
 
             <div className="flex-1 flex overflow-hidden">
-                <div className="flex-1 flex flex-col overflow-hidden border-r border-[#283639]">
+                <div className="flex-1 flex flex-col overflow-hidden border-r border-slate-300 dark:border-border-dark">
                     <div className="flex-1 overflow-y-auto overflow-x-hidden p-6 space-y-8 pb-32">
                         {messages.map((msg) => (
                             <div key={msg.id} className={`flex gap-4 ${msg.role === 'assistant' ? 'justify-start' : 'justify-end'}`}>
                                 {msg.role === 'assistant' && (
-                                    <div className="w-10 h-10 rounded-full bg-gradient-to-br from-primary to-indigo-600 flex items-center justify-center flex-shrink-0 border border-[#283639]">
+                                    <div className="w-10 h-10 rounded-full bg-gradient-to-br from-primary to-indigo-600 flex items-center justify-center flex-shrink-0 border border-slate-300 dark:border-border-dark">
                                         <span className="material-symbols-outlined text-white text-xl">smart_toy</span>
                                     </div>
                                 )}
 
                                 <div className={`flex flex-col gap-1 max-w-[85%] ${msg.role === 'user' ? 'items-end' : 'items-start'}`}>
-                                    <span className="text-text-muted text-xs font-medium px-1">
+                                    <span className="text-slate-500 dark:text-text-muted text-xs font-medium px-1">
                                         {msg.role === 'assistant'
                                             ? t('chat.aiName')
                                             : t('chat.userName')
                                         }
                                     </span>
                                     <div className={`p-4 rounded-2xl shadow-sm text-[15px] leading-relaxed font-body break-words overflow-hidden ${msg.role === 'assistant'
-                                        ? 'bg-[#283639] text-white/90 rounded-bl-none'
-                                        : 'bg-primary/10 border border-primary/20 text-white rounded-br-none'
+                                        ? 'bg-slate-100 dark:bg-border-dark text-slate-900 dark:text-white/90 rounded-bl-none'
+                                        : 'bg-primary/10 border border-primary/20 text-slate-900 dark:text-white rounded-br-none'
                                         }`}>
                                         {msg.content && <p className="whitespace-pre-wrap break-words">{msg.content}</p>}
-                                        {msg.hint && <p className="mt-2 text-text-secondary text-xs italic">{msg.hint}</p>}
+                                        {msg.hint && <p className="mt-2 text-slate-500 dark:text-text-secondary text-xs italic">{msg.hint}</p>}
 
                                         {msg.design && (
-                                            <div className="mt-4 pt-4 border-t border-indigo-800/50 max-w-full overflow-hidden">
-                                                <p className="mb-3 text-sm text-text-secondary">{t('chat.proposedChain')}</p>
+                                            <div className="mt-4 pt-4 border-t border-slate-300 dark:border-indigo-800/50 max-w-full overflow-hidden">
+                                                <p className="mb-3 text-sm text-slate-500 dark:text-text-secondary">{t('chat.proposedChain')}</p>
                                                 <DesignVisualizer
                                                     design={msg.design}
                                                     onGenerate={msg.preset ? null : () => handleBuildPreset(msg.id, msg.design)}
@@ -220,11 +220,11 @@ const MainScreen = ({ config, chatData, onUpdateChat, onNewChat }) => {
                                         )}
 
                                         {msg.preset && (
-                                            <div className="mt-4 pt-4 border-t border-indigo-800/50 space-y-4 max-w-full overflow-hidden">
+                                            <div className="mt-4 pt-4 border-t border-slate-300 dark:border-indigo-800/50 space-y-4 max-w-full overflow-hidden">
                                                 <PresetVisualizer preset={msg.preset} compact={true} />
                                                 <button
                                                     onClick={() => handleExportHlx(msg.preset)}
-                                                    className="w-full bg-primary hover:bg-[#0fb3d4] text-[#111718] h-10 px-4 rounded-lg flex items-center justify-center gap-2 font-bold transition-all shadow-lg shadow-primary/10"
+                                                    className="w-full bg-primary hover:bg-[#0fb3d4] text-slate-900 h-10 px-4 rounded-lg flex items-center justify-center gap-2 font-bold transition-all shadow-lg shadow-primary/10"
                                                 >
                                                     <span className="material-symbols-outlined text-[18px]">download</span>
                                                     {t('chat.exportBtn')}
@@ -241,18 +241,18 @@ const MainScreen = ({ config, chatData, onUpdateChat, onNewChat }) => {
                                 </div>
 
                                 {msg.role === 'user' && (
-                                    <div className="w-10 h-10 rounded-full bg-[#283639] flex items-center justify-center flex-shrink-0 border border-[#4a5e63]">
-                                        <span className="material-symbols-outlined text-text-secondary text-xl">person</span>
+                                    <div className="w-10 h-10 rounded-full bg-slate-200 dark:bg-border-dark flex items-center justify-center flex-shrink-0 border border-slate-300 dark:border-[#4a5e63]">
+                                        <span className="material-symbols-outlined text-slate-600 dark:text-text-secondary text-xl">person</span>
                                     </div>
                                 )}
                             </div>
                         ))}
                         {loading && (
                             <div className="flex gap-4 justify-start">
-                                <div className="w-10 h-10 rounded-full bg-[#1d2628] flex items-center justify-center border border-[#283639]">
+                                <div className="w-10 h-10 rounded-full bg-slate-100 dark:bg-surface-dark flex items-center justify-center border border-slate-300 dark:border-border-dark">
                                     <span className="material-symbols-outlined text-primary text-xl animate-spin">sync</span>
                                 </div>
-                                <div className="bg-[#283639] p-4 rounded-2xl rounded-bl-none flex items-center gap-2">
+                                <div className="bg-slate-100 dark:bg-border-dark p-4 rounded-2xl rounded-bl-none flex items-center gap-2">
                                     <span className="w-2 h-2 bg-primary rounded-full animate-bounce" style={{ animationDelay: '0ms' }}></span>
                                     <span className="w-2 h-2 bg-primary rounded-full animate-bounce" style={{ animationDelay: '150ms' }}></span>
                                     <span className="w-2 h-2 bg-primary rounded-full animate-bounce" style={{ animationDelay: '300ms' }}></span>
@@ -262,10 +262,10 @@ const MainScreen = ({ config, chatData, onUpdateChat, onNewChat }) => {
                         <div ref={bottomRef} />
                     </div>
 
-                    <div className="absolute bottom-0 left-0 right-0 p-6 pt-2 bg-gradient-to-t from-background-dark via-background-dark to-transparent z-50">
+                    <div className="absolute bottom-0 left-0 right-0 p-6 pt-2 bg-gradient-to-t from-background-light dark:from-background-dark via-background-light dark:via-background-dark to-transparent z-50">
                         <div className="max-w-3xl mx-auto flex flex-col gap-2">
                             <ChatInput onSend={handleSendMessage} loading={loading} />
-                            <p className="text-center text-text-muted text-[10px] mt-1 font-body">
+                            <p className="text-center text-slate-500 dark:text-text-muted text-[10px] mt-1 font-body">
                                 {t('chat.errors.ia')}
                             </p>
                         </div>

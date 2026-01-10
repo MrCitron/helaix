@@ -5,7 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 
-	"github.com/google/generative-ai-go/genai"
+	"google.golang.org/genai"
 )
 
 // RigDescription is the output of the Designer Agent
@@ -49,22 +49,33 @@ func (c *Client) ChatSoundEngineer(ctx context.Context, history []ChatMessage) (
 	If the user doesn't specify an amp, CHOOSE ONE that fits the style. ALWAYS include an Amp and a Cab.
 	`
 
-	model := c.client.GenerativeModel(c.ModelName)
-	model.ResponseMIMEType = "application/json"
+	// Construct the conversation history with system prompt
+	var contents []*genai.Content
 
-	// Construct the prompt parts including history
-	var parts []genai.Part
-	parts = append(parts, genai.Text(sysPrompt))
+	// Add system instruction as first user message
+	contents = append(contents, &genai.Content{
+		Role:  "user",
+		Parts: []*genai.Part{{Text: sysPrompt}},
+	})
 
+	// Add conversation history
 	for _, msg := range history {
 		role := "user"
 		if msg.Role == "assistant" {
 			role = "model"
 		}
-		parts = append(parts, genai.Text(fmt.Sprintf("%s: %s", role, msg.Content)))
+		contents = append(contents, &genai.Content{
+			Role:  role,
+			Parts: []*genai.Part{{Text: msg.Content}},
+		})
 	}
 
-	resp, err := model.GenerateContent(ctx, parts...)
+	// Generate content with JSON response format
+	config := &genai.GenerateContentConfig{
+		ResponseMIMEType: "application/json",
+	}
+
+	resp, err := c.client.Models.GenerateContent(ctx, c.ModelName, contents, config)
 	if err != nil {
 		return nil, fmt.Errorf("sound engineer agent failed: %v", err)
 	}
@@ -73,12 +84,7 @@ func (c *Client) ChatSoundEngineer(ctx context.Context, history []ChatMessage) (
 		return nil, fmt.Errorf("empty response from Sound Engineer Agent")
 	}
 
-	var jsonText string
-	if txt, ok := resp.Candidates[0].Content.Parts[0].(genai.Text); ok {
-		jsonText = string(txt)
-	} else {
-		return nil, fmt.Errorf("unexpected response format from Sound Engineer Agent")
-	}
+	jsonText := resp.Candidates[0].Content.Parts[0].Text
 
 	var result RigDescription
 	if err := json.Unmarshal([]byte(jsonText), &result); err != nil {

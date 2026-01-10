@@ -9,8 +9,8 @@ import (
 
 type AppConfig struct {
 	ApiKey          string `json:"api_key"`
-	Provider        string `json:"provider"`
-	Model           string `json:"model"`
+	Provider        string `json:"provider"` // "Google" = Gemini API (ai.google.dev), "Vertex" = Vertex AI
+	Model           string `json:"model"`    // e.g., "gemini-2.5-flash", "gemini-3-flash-preview"
 	OutputPath      string `json:"output_path"`
 	HardwareTarget  string `json:"hardware_target"`
 	DeleteNoConfirm bool   `json:"delete_no_confirm"`
@@ -27,13 +27,18 @@ func NewManager() *Manager {
 	configDir, _ := os.UserConfigDir()
 	configPath := filepath.Join(configDir, "helaix", "settings.json")
 
-	defaultOutPath := filepath.Join(os.Getenv("USERPROFILE"), "Documents", "helaix")
+	// Use HOME for macOS/Linux, USERPROFILE for Windows
+	homeDir := os.Getenv("HOME")
+	if homeDir == "" {
+		homeDir = os.Getenv("USERPROFILE") // Windows fallback
+	}
+	defaultOutPath := filepath.Join(homeDir, "Documents", "helaix")
 
 	m := &Manager{
 		configPath: configPath,
 		config: AppConfig{
-			Provider:       "Google",
-			Model:          "gemini-1.5-flash",
+			Provider:       "Google", // Gemini API (not Vertex AI)
+			Model:          "gemini-2.5-flash", // Updated to current stable model
 			OutputPath:     defaultOutPath,
 			HardwareTarget: "Helix Floor",
 		},

@@ -7,7 +7,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/google/generative-ai-go/genai"
+	"google.golang.org/genai"
 )
 
 // ChatPresetEngineer takes the abstract rig and maps it to specific Helix Blocks, or refines an existing implementation
@@ -78,22 +78,36 @@ func (c *Client) ChatPresetEngineer(ctx context.Context, rig *RigDescription, pr
 	inputBytes, _ := json.Marshal(rig)
 	userPrompt := string(inputBytes)
 
-	model := c.client.GenerativeModel(c.ModelName)
-	model.ResponseMIMEType = "application/json"
+	// Construct the conversation history
+	var contents []*genai.Content
 
-	var parts []genai.Part
-	parts = append(parts, genai.Text(sysPrompt))
-	parts = append(parts, genai.Text(fmt.Sprintf("SOUND ENGINEER PROPOSAL: %s", userPrompt)))
+	// Add system instruction and rig proposal
+	contents = append(contents, &genai.Content{
+		Role: "user",
+		Parts: []*genai.Part{
+			{Text: sysPrompt},
+			{Text: fmt.Sprintf("SOUND ENGINEER PROPOSAL: %s", userPrompt)},
+		},
+	})
 
+	// Add conversation history
 	for _, msg := range history {
 		role := "user"
 		if msg.Role == "assistant" {
 			role = "model"
 		}
-		parts = append(parts, genai.Text(fmt.Sprintf("%s: %s", role, msg.Content)))
+		contents = append(contents, &genai.Content{
+			Role:  role,
+			Parts: []*genai.Part{{Text: msg.Content}},
+		})
 	}
 
-	resp, err := model.GenerateContent(ctx, parts...)
+	// Generate content with JSON response format
+	config := &genai.GenerateContentConfig{
+		ResponseMIMEType: "application/json",
+	}
+
+	resp, err := c.client.Models.GenerateContent(ctx, c.ModelName, contents, config)
 	if err != nil {
 		return nil, fmt.Errorf("preset engineer agent failed: %v", err)
 	}
@@ -102,12 +116,7 @@ func (c *Client) ChatPresetEngineer(ctx context.Context, rig *RigDescription, pr
 		return nil, fmt.Errorf("empty response from Preset Engineer Agent")
 	}
 
-	var jsonText string
-	if txt, ok := resp.Candidates[0].Content.Parts[0].(genai.Text); ok {
-		jsonText = string(txt)
-	} else {
-		return nil, fmt.Errorf("unexpected response format from Builder Agent")
-	}
+	jsonText := resp.Candidates[0].Content.Parts[0].Text
 
 	// 5. Parse Response
 	type BuilderBlock struct {
