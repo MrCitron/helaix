@@ -2,8 +2,10 @@ build/bin
 node_modules
 frontend/dist
 HelAIx.exe
+HelAIx
 frontend/build_log.txt
 frontend/build_error.log
 tools/**/*
 resources/*.pdf
 workspace.code-workspace
+.DS_Store

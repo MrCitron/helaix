@@ -19,12 +19,12 @@ const DesignVisualizer = ({ design, onGenerate }) => {
 
     return (
         <div className="flex flex-col gap-6 w-full">
-            <div className="relative w-full rounded-xl border border-[#3f5256] bg-[#111718] p-4 py-8 overflow-hidden">
-                <h3 className="text-text-muted uppercase text-[10px] font-bold tracking-[0.2em] pl-2 mb-6 opacity-50">{t('chat.realChain')}</h3>
+            <div className="relative w-full rounded-xl border border-slate-300 dark:border-[#3f5256] bg-white dark:bg-background-dark p-4 py-8 overflow-hidden">
+                <h3 className="text-slate-500 dark:text-text-muted uppercase text-[10px] font-bold tracking-[0.2em] pl-2 mb-6 opacity-50">{t('chat.realChain')}</h3>
                 {/* Horizontal Signal Line (Desktop) */}
-                <div className="hidden lg:block absolute top-1/2 left-0 w-full h-1 bg-[#283639] -translate-y-1/2 z-0"></div>
+                <div className="hidden lg:block absolute top-1/2 left-0 w-full h-1 bg-slate-300 dark:bg-border-dark -translate-y-1/2 z-0"></div>
                 {/* Vertical Signal Line (Mobile) */}
-                <div className="block lg:hidden absolute left-1/2 top-0 w-1 h-full bg-[#283639] -translate-x-1/2 z-0"></div>
+                <div className="block lg:hidden absolute left-1/2 top-0 w-1 h-full bg-slate-300 dark:bg-border-dark -translate-x-1/2 z-0"></div>
 
                 {/* Blocks Container */}
                 <div className="relative z-10 flex flex-col lg:flex-row flex-wrap items-center justify-center gap-8 lg:gap-4">
@@ -43,10 +43,10 @@ const DesignVisualizer = ({ design, onGenerate }) => {
                                 </div>
 
                                 {/* Labels */}
-                                <span className={`text-[9px] font-bold ${cfg.text} bg-[#111718]/80 px-1.5 py-0.5 rounded border border-[#283639] select-none uppercase tracking-tighter`}>
+                                <span className={`text-[9px] font-bold ${cfg.text} bg-white/90 dark:bg-background-dark/80 px-1.5 py-0.5 rounded border border-slate-300 dark:border-border-dark select-none uppercase tracking-tighter`}>
                                     {cfg.label}
                                 </span>
-                                <span className="text-[10px] text-gray-300 truncate w-full text-center font-medium px-1">
+                                <span className="text-[10px] text-slate-600 dark:text-gray-300 truncate w-full text-center font-medium px-1">
                                     {comp.name}
                                 </span>
                             </div>

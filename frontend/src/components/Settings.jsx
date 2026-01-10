@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useI18n } from '../i18n';
-import { GxSaveConfig, GxTestConnection, GxSelectFolder, GxGetDefaultOutputPath } from '../../wailsjs/go/main/App';
+import { GxSaveConfig, GxTestConnection, GxSelectFolder, GxGetDefaultOutputPath, GxListModels } from '../../wailsjs/go/main/App';
 
 const Settings = ({ config, onSave }) => {
     const { t, lang, changeLang } = useI18n();
@@ -9,6 +9,8 @@ const Settings = ({ config, onSave }) => {
     const [showKey, setShowKey] = useState(false);
     const [testStatus, setTestStatus] = useState('');
     const [defaultPath, setDefaultPath] = useState('');
+    const [availableModels, setAvailableModels] = useState([]);
+    const [loadingModels, setLoadingModels] = useState(false);
 
     useEffect(() => {
         const fetchDefault = async () => {
@@ -17,6 +19,25 @@ const Settings = ({ config, onSave }) => {
         };
         fetchDefault();
     }, []);
+
+    useEffect(() => {
+        const fetchModels = async () => {
+            if (!config.api_key) return;
+
+            setLoadingModels(true);
+            try {
+                const models = await GxListModels();
+                if (models && models.length > 0) {
+                    setAvailableModels(models);
+                }
+            } catch (err) {
+                console.error('Failed to fetch models:', err);
+            } finally {
+                setLoadingModels(false);
+            }
+        };
+        fetchModels();
+    }, [config.api_key]);
 
     const handleSave = async () => {
         setSaving(true);
@@ -33,11 +54,20 @@ const Settings = ({ config, onSave }) => {
         setTestStatus('testing');
         try {
             const result = await GxTestConnection();
-            alert(result);
-            setTestStatus('success');
+            if (result) {
+                // Success case
+                console.log('Test connection success:', result);
+                setTestStatus('success');
+                // Keep success status visible for 5 seconds
+                setTimeout(() => setTestStatus(''), 5000);
+            } else {
+                throw new Error('No response from server');
+            }
         } catch (err) {
-            alert('Failed: ' + err);
+            console.error('Test connection error:', err);
             setTestStatus('error');
+            // Keep error status visible for 5 seconds
+            setTimeout(() => setTestStatus(''), 5000);
         }
     };
 
@@ -81,12 +111,16 @@ const Settings = ({ config, onSave }) => {
                                     disabled
                                     className="w-full appearance-none rounded-lg border border-border-light dark:border-border-dark bg-surface-light dark:bg-surface-dark px-4 h-14 text-base focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary transition-all cursor-not-allowed"
                                 >
-                                    <option value="google">Google Cloud Vertex AI</option>
+                                    <option value="google">Google Gemini API</option>
                                 </select>
                                 <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-4 text-text-muted">
                                     <span className="material-symbols-outlined">expand_more</span>
                                 </div>
                             </div>
+                            <p className="text-xs text-text-muted mt-1 flex items-center gap-1">
+                                <span className="material-symbols-outlined text-[14px]">info</span>
+                                Using ai.google.dev API with API key authentication
+                            </p>
                         </label>
 
                         <label className="flex flex-col flex-1 gap-2">
@@ -95,13 +129,29 @@ const Settings = ({ config, onSave }) => {
                                 <select
                                     value={localConfig.model}
                                     onChange={(e) => setLocalConfig({ ...localConfig, model: e.target.value })}
-                                    className="w-full appearance-none rounded-lg border border-border-light dark:border-border-dark bg-surface-light dark:bg-surface-dark px-4 h-14 text-base focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary transition-all cursor-pointer"
+                                    disabled={loadingModels}
+                                    className="w-full appearance-none rounded-lg border border-border-light dark:border-border-dark bg-surface-light dark:bg-surface-dark px-4 h-14 text-base focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary transition-all cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
                                 >
-                                    <option value="gemini-1.5-pro">Gemini 1.5 Pro</option>
-                                    <option value="gemini-1.5-flash">Gemini 1.5 Flash</option>
+                                    {loadingModels ? (
+                                        <option>{t('settings.loadingModels') || 'Loading models...'}</option>
+                                    ) : availableModels.length > 0 ? (
+                                        availableModels.map(model => {
+                                            // Clean up model name for display (remove "models/" prefix)
+                                            const displayName = model.replace('models/', '');
+                                            return <option key={model} value={displayName}>{displayName}</option>
+                                        })
+                                    ) : (
+                                        <>
+                                            <option value="gemini-2.5-flash">Gemini 2.5 Flash</option>
+                                            <option value="gemini-2.5-pro">Gemini 2.5 Pro</option>
+                                            <option value="gemini-3-flash-preview">Gemini 3 Flash (Preview)</option>
+                                        </>
+                                    )}
                                 </select>
                                 <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-4 text-text-muted">
-                                    <span className="material-symbols-outlined">expand_more</span>
+                                    <span className={`material-symbols-outlined ${loadingModels ? 'animate-spin' : ''}`}>
+                                        {loadingModels ? 'sync' : 'expand_more'}
+                                    </span>
                                 </div>
                             </div>
                         </label>
@@ -134,9 +184,17 @@ const Settings = ({ config, onSave }) => {
                                 <button
                                     onClick={handleTestConnection}
                                     disabled={testStatus === 'testing'}
-                                    className="flex items-center justify-center gap-2 h-14 px-6 rounded-lg bg-surface-light dark:bg-surface-dark border border-border-light dark:border-border-dark hover:border-primary hover:text-primary transition-all font-medium whitespace-nowrap group disabled:opacity-50"
+                                    className={`flex items-center justify-center gap-2 h-14 px-6 rounded-lg border font-medium whitespace-nowrap transition-all disabled:opacity-50 ${
+                                        testStatus === 'success'
+                                            ? 'bg-green-500/10 border-green-500 text-green-500'
+                                            : testStatus === 'error'
+                                            ? 'bg-red-500/10 border-red-500 text-red-500'
+                                            : 'bg-surface-light dark:bg-surface-dark border-border-light dark:border-border-dark hover:border-primary hover:text-primary'
+                                    }`}
                                 >
-                                    <span className={`material-symbols-outlined ${testStatus === 'testing' ? 'animate-spin' : 'group-hover:animate-pulse'}`}>{testStatus === 'testing' ? 'sync' : 'wifi_tethering'}</span>
+                                    <span className={`material-symbols-outlined ${testStatus === 'testing' ? 'animate-spin' : ''}`}>
+                                        {testStatus === 'testing' ? 'sync' : testStatus === 'success' ? 'check_circle' : testStatus === 'error' ? 'cancel' : 'wifi_tethering'}
+                                    </span>
                                     {t('settings.testConn')}
                                 </button>
                             </div>
@@ -251,7 +309,7 @@ const Settings = ({ config, onSave }) => {
                                 </div>
                                 <button
                                     onClick={() => setLocalConfig({ ...localConfig, delete_no_confirm: !localConfig.delete_no_confirm })}
-                                    className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 dark:focus:ring-offset-[#111718] ${localConfig.delete_no_confirm ? 'bg-primary' : 'bg-slate-300 dark:bg-[#283639]'
+                                    className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 dark:focus:ring-offset-background-dark ${localConfig.delete_no_confirm ? 'bg-primary' : 'bg-slate-300 dark:bg-border-dark'
                                         }`}
                                 >
                                     <span
@@ -269,7 +327,7 @@ const Settings = ({ config, onSave }) => {
                                 </div>
                                 <button
                                     onClick={() => setLocalConfig({ ...localConfig, incremental_save: !localConfig.incremental_save })}
-                                    className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 dark:focus:ring-offset-[#111718] ${localConfig.incremental_save ? 'bg-primary' : 'bg-slate-300 dark:bg-[#283639]'
+                                    className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 dark:focus:ring-offset-background-dark ${localConfig.incremental_save ? 'bg-primary' : 'bg-slate-300 dark:bg-border-dark'
                                         }`}
                                 >
                                     <span

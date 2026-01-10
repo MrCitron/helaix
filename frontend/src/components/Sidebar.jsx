@@ -9,11 +9,11 @@ const Sidebar = ({ currentView, onViewChange, recentChats = [], currentChatId, o
     ];
 
     return (
-        <aside className={`${isCollapsed ? 'w-20' : 'w-64'} h-full bg-[#111718] border-r border-[#283639] flex flex-col justify-between p-4 shrink-0 z-20 transition-all duration-300 relative overflow-visible`}>
+        <aside className={`${isCollapsed ? 'w-20' : 'w-64'} h-full bg-surface-light dark:bg-background-dark border-r border-slate-300 dark:border-border-dark flex flex-col justify-between p-4 shrink-0 z-20 transition-all duration-300 relative overflow-visible`}>
             {/* Collapse Toggle */}
             <button
                 onClick={onToggleCollapse}
-                className="absolute -right-3 top-20 size-6 bg-[#283639] border border-[#3b4f54] rounded-full flex items-center justify-center text-primary hover:text-white transition-all z-30 shadow-md"
+                className="absolute -right-3 top-20 size-6 bg-slate-200 dark:bg-border-dark border border-slate-300 dark:border-[#3b4f54] rounded-full flex items-center justify-center text-primary hover:text-white transition-all z-30 shadow-md"
             >
                 <span className="material-symbols-outlined text-[16px]">
                     {isCollapsed ? 'chevron_right' : 'chevron_left'}
@@ -25,16 +25,16 @@ const Sidebar = ({ currentView, onViewChange, recentChats = [], currentChatId, o
                 <div className={`flex flex-col gap-1 px-2 ${isCollapsed ? 'items-center' : ''}`}>
                     <div className="flex items-center gap-2 text-primary cursor-pointer" onClick={() => onViewChange('chat')}>
                         <span className="material-symbols-outlined text-3xl">graphic_eq</span>
-                        {!isCollapsed && <h1 className="text-white text-xl font-bold tracking-tight">{t('appName')}</h1>}
+                        {!isCollapsed && <h1 className="text-slate-900 dark:text-white text-xl font-bold tracking-tight">{t('appName')}</h1>}
                     </div>
-                    {!isCollapsed && <p className="text-[#9db4b9] text-xs font-normal leading-normal">{t('tagline')}</p>}
+                    {!isCollapsed && <p className="text-slate-600 dark:text-text-secondary text-xs font-normal leading-normal">{t('tagline')}</p>}
                 </div>
 
                 {/* Primary Action */}
                 <button
                     onClick={onNewChat}
                     title={isCollapsed ? t('nav.newChat') : ''}
-                    className={`flex items-center gap-3 rounded-xl bg-primary hover:bg-[#0fb3d4] text-[#111718] transition-all font-bold shadow-lg shadow-primary/10 ${isCollapsed ? 'p-3 justify-center' : 'px-3 py-2.5'}`}
+                    className={`flex items-center gap-3 rounded-xl bg-primary hover:bg-[#0fb3d4] text-slate-900 transition-all font-bold shadow-lg shadow-primary/10 ${isCollapsed ? 'p-3 justify-center' : 'px-3 py-2.5'}`}
                 >
                     <span className="material-symbols-outlined">add_circle</span>
                     {!isCollapsed && <p className="text-sm">{t('nav.newChat')}</p>}
@@ -48,8 +48,8 @@ const Sidebar = ({ currentView, onViewChange, recentChats = [], currentChatId, o
                             onClick={() => onViewChange(item.id)}
                             title={isCollapsed ? item.label : ''}
                             className={`flex items-center gap-3 rounded-lg transition-colors group ${isCollapsed ? 'p-3 justify-center' : 'px-3 py-2.5'} ${currentView === item.id
-                                ? 'bg-[#283639] text-white'
-                                : 'text-[#9db4b9] hover:bg-[#1d2628] hover:text-white'
+                                ? 'bg-slate-200 dark:bg-border-dark text-slate-900 dark:text-white'
+                                : 'text-slate-600 dark:text-text-secondary hover:bg-slate-100 dark:hover:bg-surface-dark hover:text-slate-900 dark:hover:text-white'
                                 }`}
                         >
                             <span className={`material-symbols-outlined transition-colors ${currentView === item.id ? 'text-primary' : 'group-hover:text-white'
@@ -63,7 +63,7 @@ const Sidebar = ({ currentView, onViewChange, recentChats = [], currentChatId, o
 
                 {/* History Section */}
                 <div className={`flex flex-col gap-2 px-1 mt-2 ${isCollapsed ? 'items-center' : ''}`}>
-                    {!isCollapsed && <p className="text-[#586e75] text-[10px] font-bold uppercase tracking-widest px-2 mb-1">{t('nav.recent')}</p>}
+                    {!isCollapsed && <p className="text-slate-500 dark:text-text-muted text-[10px] font-bold uppercase tracking-widest px-2 mb-1">{t('nav.recent')}</p>}
                     <div className={`flex flex-col gap-1 overflow-y-auto max-h-[400px] scrollbar-hide w-full ${isCollapsed ? 'items-center overflow-x-hidden' : ''}`}>
                         {recentChats.map((chat) => (
                             <div
@@ -72,8 +72,8 @@ const Sidebar = ({ currentView, onViewChange, recentChats = [], currentChatId, o
                                     ? 'p-3 justify-center rounded-none'
                                     : 'px-3 py-2 rounded-lg'
                                     } ${currentChatId === chat.id && currentView === 'chat'
-                                        ? (isCollapsed ? 'text-primary border-r-2 border-primary' : 'bg-[#283639]/50 text-white border-l-2 border-primary pl-2')
-                                        : 'text-[#9db4b9] hover:bg-[#1d2628] hover:text-white'
+                                        ? (isCollapsed ? 'text-primary border-r-2 border-primary' : 'bg-slate-200 dark:bg-border-dark/50 text-slate-900 dark:text-white border-l-2 border-primary pl-2')
+                                        : 'text-slate-600 dark:text-text-secondary hover:bg-slate-100 dark:hover:bg-surface-dark hover:text-slate-900 dark:hover:text-white'
                                     }`}
                                 onClick={() => onSwitchChat(chat.id)}
                                 title={isCollapsed ? chat.name : ''}
@@ -93,12 +93,12 @@ const Sidebar = ({ currentView, onViewChange, recentChats = [], currentChatId, o
                             </div>
                         ))}
                         {recentChats.length === 0 && !isCollapsed && (
-                            <p className="px-3 py-4 text-[11px] text-[#586e75] italic text-center border border-dashed border-[#283639] rounded-xl mr-2">
+                            <p className="px-3 py-4 text-[11px] text-slate-500 dark:text-text-muted italic text-center border border-dashed border-slate-300 dark:border-border-dark rounded-xl mr-2">
                                 No history yet
                             </p>
                         )}
                         {recentChats.length === 0 && isCollapsed && (
-                            <span className="material-symbols-outlined text-[#283639]">history</span>
+                            <span className="material-symbols-outlined text-slate-300 dark:text-border-dark">history</span>
                         )}
                     </div>
                 </div>

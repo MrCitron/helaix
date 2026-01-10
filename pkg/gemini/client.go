@@ -3,13 +3,10 @@ package gemini
 import (
 	"context"
 
-	"github.com/google/generative-ai-go/genai"
-	"google.golang.org/api/iterator"
-	"google.golang.org/api/option"
+	"google.golang.org/genai"
 )
 
 type Client struct {
-	model     *genai.GenerativeModel
 	client    *genai.Client
 	ModelName string
 }
@@ -20,48 +17,74 @@ type ChatMessage struct {
 }
 
 func NewClient(ctx context.Context, apiKey string, modelName string) (*Client, error) {
-	c, err := genai.NewClient(ctx, option.WithAPIKey(apiKey))
+	c, err := genai.NewClient(ctx, &genai.ClientConfig{
+		APIKey:  apiKey,
+		Backend: genai.BackendGeminiAPI,
+	})
 	if err != nil {
 		return nil, err
 	}
 
-	m := c.GenerativeModel(modelName)
-	m.ResponseMIMEType = "application/json"
-
 	return &Client{
 		client:    c,
-		model:     m,
 		ModelName: modelName,
 	}, nil
 }
 
 func (c *Client) Close() {
-	if c.client != nil {
-		c.client.Close()
-	}
+	// The new SDK doesn't require explicit closing
 }
 
-// ListModels returns a list of available generative models
+// ListModels returns a list of available text and multimodal generation models
 func (c *Client) ListModels(ctx context.Context) ([]string, error) {
-	iter := c.client.ListModels(ctx)
 	var models []string
-	for {
-		m, err := iter.Next()
-		if err == iterator.Done {
-			break
-		}
+
+	// Use All() iterator for automatic pagination
+	for m, err := range c.client.Models.All(ctx) {
 		if err != nil {
 			return nil, err
 		}
-		// Filter for generateContent supported models
-		if m.SupportedGenerationMethods != nil {
-			for _, method := range m.SupportedGenerationMethods {
-				if method == "generateContent" {
-					models = append(models, m.Name) // Name is like "models/gemini-pro"
+
+		// Filter for text/multimodal generation models
+		// Include models that support generateContent (text and multimodal)
+		// Exclude specialized output models (image gen, audio gen, TTS)
+		supportsGenerateContent := false
+		if m.SupportedActions != nil {
+			for _, action := range m.SupportedActions {
+				if action == "generateContent" {
+					supportsGenerateContent = true
 					break
 				}
 			}
 		}
+
+		if !supportsGenerateContent {
+			continue
+		}
+
+		// Exclude output-focused models (image generation, audio generation, TTS)
+		// Include: text-only and multimodal (text+image input) models
+		// The "-image" suffix typically means image GENERATION output, not input
+		name := m.Name
+		if containsAny(name, []string{"-image", "-audio", "-video", "-tts", "imagen"}) {
+			continue
+		}
+
+		models = append(models, name) // Name is like "models/gemini-pro" or "models/gemini-1.5-pro-vision"
 	}
 	return models, nil
+}
+
+// containsAny checks if string contains any of the substrings
+func containsAny(s string, substrs []string) bool {
+	for _, substr := range substrs {
+		if len(s) >= len(substr) {
+			for i := 0; i <= len(s)-len(substr); i++ {
+				if s[i:i+len(substr)] == substr {
+					return true
+				}
+			}
+		}
+	}
+	return false
 }

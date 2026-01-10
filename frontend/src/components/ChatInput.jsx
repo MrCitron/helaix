@@ -33,13 +33,13 @@ const ChatInput = ({ onSend, loading }) => {
     };
 
     return (
-        <div className="relative bg-[#1d2628] rounded-xl border border-[#3f5256] focus-within:border-primary/50 focus-within:ring-1 focus-within:ring-primary/50 transition-all shadow-lg overflow-hidden">
+        <div className="relative bg-white dark:bg-surface-dark rounded-xl border border-slate-300 dark:border-[#3f5256] focus-within:border-primary/50 focus-within:ring-1 focus-within:ring-primary/50 transition-all shadow-lg overflow-hidden">
             <textarea
                 ref={textareaRef}
                 value={text}
                 onChange={handleChange}
                 onKeyDown={handleKeyDown}
-                className="w-full bg-transparent text-white placeholder-[#586e75] text-sm p-4 pr-12 rounded-xl focus:outline-none resize-none font-body transition-all"
+                className="w-full bg-transparent text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-text-muted text-sm p-4 pr-12 rounded-xl focus:outline-none resize-none font-body transition-all"
                 placeholder={t('chat.placeholder')}
                 rows="1"
                 style={{ minHeight: '56px' }}
@@ -48,8 +48,8 @@ const ChatInput = ({ onSend, loading }) => {
                 onClick={handleSend}
                 disabled={!text.trim() || loading}
                 className={`absolute right-2 bottom-2 p-2 rounded-lg transition-all flex items-center justify-center ${text.trim() && !loading
-                        ? 'bg-primary text-[#111718] hover:bg-[#0fb3d4] shadow-lg shadow-primary/20'
-                        : 'bg-[#283639] text-[#586e75] cursor-not-allowed'
+                        ? 'bg-primary text-slate-900 hover:bg-[#0fb3d4] shadow-lg shadow-primary/20'
+                        : 'bg-slate-200 dark:bg-border-dark text-slate-400 dark:text-text-muted cursor-not-allowed'
                     }`}
             >
                 <span className="material-symbols-outlined text-[20px]">

@@ -85,7 +85,12 @@ func (a *App) GxSaveFile(preset helix.Preset, filename string) (string, error) {
 	// Use default path if absolute path not provided (simplified)
 	baseDir := cfg.OutputPath
 	if !filepath.IsAbs(baseDir) {
-		baseDir = filepath.Join(os.Getenv("USERPROFILE"), "Documents", "helaix")
+		// Use HOME for macOS/Linux, USERPROFILE for Windows
+		homeDir := os.Getenv("HOME")
+		if homeDir == "" {
+			homeDir = os.Getenv("USERPROFILE")
+		}
+		baseDir = filepath.Join(homeDir, "Documents", "helaix")
 	}
 
 	// Ensure dir
@@ -125,8 +130,14 @@ func (a *App) GxListModels() ([]string, error) {
 		return []string{}, nil
 	}
 
+	// Get the first available model name from config or use fallback
+	modelName := cfg.Model
+	if modelName == "" {
+		modelName = "gemini-2.5-flash" // Fallback only if no model in config
+	}
+
 	// Create a temporary client just for listing
-	client, err := gemini.NewClient(a.ctx, cfg.ApiKey, "gemini-1.5-flash") // Model arg ignored for listing
+	client, err := gemini.NewClient(a.ctx, cfg.ApiKey, modelName)
 	if err != nil {
 		return nil, err
 	}
@@ -159,7 +170,12 @@ func (a *App) GxSelectFolder(initialDir string) (string, error) {
 
 // GxGetDefaultOutputPath returns the default Documents/helaix path
 func (a *App) GxGetDefaultOutputPath() string {
-	return filepath.Join(os.Getenv("USERPROFILE"), "Documents", "helaix")
+	// Use HOME for macOS/Linux, USERPROFILE for Windows
+	homeDir := os.Getenv("HOME")
+	if homeDir == "" {
+		homeDir = os.Getenv("USERPROFILE") // Windows fallback
+	}
+	return filepath.Join(homeDir, "Documents", "helaix")
 }
 
 // GxTestConnection validates the API key by listing models
@@ -169,18 +185,26 @@ func (a *App) GxTestConnection() (string, error) {
 		return "", fmt.Errorf("API Key is missing")
 	}
 
-	client, err := gemini.NewClient(a.ctx, cfg.ApiKey, "gemini-1.5-flash")
+	// Get the model name from config or use fallback
+	modelName := cfg.Model
+	if modelName == "" {
+		modelName = "gemini-2.5-flash" // Fallback only if no model in config
+	}
+
+	// Create client and test connection
+	client, err := gemini.NewClient(a.ctx, cfg.ApiKey, modelName)
 	if err != nil {
 		return "", err
 	}
 	defer client.Close()
 
-	_, err = client.ListModels(a.ctx)
+	models, err := client.ListModels(a.ctx)
 	if err != nil {
 		return "", err
 	}
 
-	return "Connection successful!", nil
+	// Return success with count of available models
+	return fmt.Sprintf("Connection successful! Found %d available models.", len(models)), nil
 }
 
 // GxOpenPath opens the given path (file or folder) using the system's default application
