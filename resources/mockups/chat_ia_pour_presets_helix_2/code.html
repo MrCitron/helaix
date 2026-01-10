@@ -1,0 +1,252 @@
+<!DOCTYPE html>
+<html class="dark" lang="fr"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Chat IA pour Presets HelAIx</title>
+<link href="https://fonts.googleapis.com" rel="preconnect"/>
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans:wght@400;500;700&amp;family=Space+Grotesk:wght@300;400;500;600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+            extend: {
+                colors: {
+                "primary": "#13c8ec",
+                "background-light": "#f6f8f8",
+                "background-dark": "#111718",
+                "surface-dark": "#1d2628", 
+                "surface-light": "#ffffff",
+                },
+                fontFamily: {
+                "display": ["Space Grotesk", "sans-serif"],
+                "body": ["Noto Sans", "sans-serif"]
+                },
+                borderRadius: {"DEFAULT": "0.25rem", "lg": "0.5rem", "xl": "0.75rem", "2xl": "1rem", "full": "9999px"},
+            },
+            },
+        }
+    </script>
+<style>::-webkit-scrollbar {
+            width: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #111718; 
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #283639; 
+            border-radius: 4px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #3b4d52; 
+        }.material-symbols-outlined {
+          font-variation-settings:
+          'FILL' 0,
+          'wght' 400,
+          'GRAD' 0,
+          'opsz' 24
+        }
+        .icon-filled {
+            font-variation-settings: 'FILL' 1 !important;
+        }
+    </style>
+</head>
+<body class="bg-background-light dark:bg-background-dark text-[#111718] dark:text-white font-display overflow-hidden h-screen w-screen flex">
+<aside class="w-64 h-full bg-[#111718] border-r border-[#283639] flex flex-col justify-between p-4 shrink-0 z-20">
+<div class="flex flex-col gap-8">
+<div class="flex flex-col gap-1 px-2">
+<div class="flex items-center gap-2 text-primary">
+<span class="material-symbols-outlined text-3xl">graphic_eq</span>
+<h1 class="text-white text-xl font-bold tracking-tight">HelAIx</h1>
+</div>
+<p class="text-[#9db4b9] text-xs font-normal leading-normal">Générateur de Presets</p>
+</div>
+<nav class="flex flex-col gap-2">
+<a class="flex items-center gap-3 px-3 py-2.5 rounded-lg bg-[#283639] hover:bg-[#344549] transition-colors group" href="#">
+<span class="material-symbols-outlined text-primary group-hover:text-white transition-colors">add_circle</span>
+<p class="text-white text-sm font-medium">Nouveau Chat</p>
+</a>
+<a class="flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-[#1d2628] transition-colors text-[#9db4b9] hover:text-white" href="#">
+<span class="material-symbols-outlined">settings</span>
+<p class="text-sm font-medium">Paramètres</p>
+</a>
+</nav>
+<div class="flex flex-col gap-2 px-3 mt-4">
+<p class="text-[#586e75] text-xs font-bold uppercase tracking-wider">Récents</p>
+<div class="flex flex-col gap-1">
+<button class="text-left text-[#9db4b9] text-sm hover:text-white py-1 truncate">Gilmour Lead Tone</button>
+<button class="text-left text-[#9db4b9] text-sm hover:text-white py-1 truncate">Clean Ambient 80s</button>
+<button class="text-left text-[#9db4b9] text-sm hover:text-white py-1 truncate">Metal Rhythm chug</button>
+</div>
+</div>
+</div>
+</aside>
+<main class="flex-1 flex flex-col h-full relative bg-background-light dark:bg-background-dark">
+<header class="h-16 shrink-0 border-b border-[#283639] flex items-center justify-between px-6 bg-[#111718]/90 backdrop-blur-sm z-10">
+<div class="flex items-center gap-3">
+<div class="size-8 rounded-full bg-[#283639] flex items-center justify-center text-primary">
+<span class="material-symbols-outlined text-lg">chat</span>
+</div>
+<div>
+<h2 class="text-white text-base font-bold leading-tight">Chat en cours : Gilmour Lead Tone</h2>
+<p class="text-[#586e75] text-xs">Modèle Helix Floor • V 3.50</p>
+</div>
+</div>
+<div class="flex items-center gap-3">
+<span class="text-[#586e75] text-xs font-medium mr-2">Signal Chain Status: <span class="text-primary">Ready</span></span>
+<button class="flex cursor-pointer items-center justify-center rounded-lg h-9 px-4 bg-primary hover:bg-[#0fb3d4] text-[#111718] text-sm font-bold transition-colors shadow-[0_0_15px_rgba(19,200,236,0.15)]">
+<span class="material-symbols-outlined text-[18px] mr-2">download</span>
+<span class="truncate">Générer Preset (.hlx)</span>
+</button>
+<button class="flex cursor-pointer items-center justify-center rounded-lg size-9 bg-[#283639] hover:bg-[#344549] text-white transition-colors">
+<span class="material-symbols-outlined text-[20px]">more_vert</span>
+</button>
+</div>
+</header>
+<div class="flex-1 overflow-y-auto p-6 scroll-smooth" id="chat-container">
+<div class="max-w-3xl mx-auto flex flex-col gap-6 pb-4">
+<div class="flex justify-center my-2">
+<span class="text-[#586e75] text-xs font-medium bg-[#1d2628] px-3 py-1 rounded-full">Aujourd'hui, 10:23</span>
+</div>
+<div class="flex items-end gap-4">
+<div class="bg-center bg-no-repeat bg-cover rounded-full w-10 h-10 shrink-0 border border-[#283639]" data-alt="Abstract gradient avatar representing AI" style='background-image: url("https://lh3.googleusercontent.com/aida-public/AB6AXuDmiDKLA5-7akiFO2xqJHY5B3BO9pfsYCfaOqnTNEwaXeANK78fq0ci8lZN2Tzco1ctTAwl5I34qfQRiYeY5oFLmWb9_uMwltsN7OqcH_6Csr9PbBunK0nAaX_RLIwrkREInIscdJHTF1BtmQHBtaZxEquY9zQWmloYNPHdzn5Ox7nx3wSw52LbQCqdr841ZQLxG1SIjXpPdSJqrwHh_9Fq-nd0q1d1RCBDghiMTmnoSyLovd8L0WPqJbxjMbZ84CaG24koshUlmFjz");'>
+</div>
+<div class="flex flex-col gap-1 items-start max-w-[80%]">
+<div class="flex items-center gap-2">
+<span class="text-[#9db4b9] text-xs font-medium">Helix AI</span>
+</div>
+<div class="p-4 rounded-2xl rounded-bl-none bg-[#283639] text-white/90 text-[15px] leading-relaxed font-body shadow-sm">
+<p>Bonjour ! Je suis prêt à configurer votre pédalier. Quel type de son cherchez-vous à créer aujourd'hui ?</p>
+<p class="mt-2 text-[#9db4b9] text-xs italic">Exemple : "Un son clean cristallin avec beaucoup de reverb" ou "Un son lead style Gilmour 1979"</p>
+</div>
+</div>
+</div>
+<div class="flex items-end gap-4 justify-end">
+<div class="flex flex-col gap-1 items-end max-w-[80%]">
+<span class="text-[#9db4b9] text-xs font-medium">Vous</span>
+<div class="p-4 rounded-2xl rounded-br-none bg-primary/10 border border-primary/20 text-white text-[15px] leading-relaxed font-body">
+<p>Je cherche à reproduire le son solo de "Comfortably Numb". Quelque chose de très sustain, crémeux mais avec de l'attaque, et bien sûr du delay.</p>
+</div>
+</div>
+<div class="bg-center bg-no-repeat bg-cover rounded-full w-10 h-10 shrink-0 border border-[#283639]" data-alt="User avatar with a guitar" style='background-image: url("https://lh3.googleusercontent.com/aida-public/AB6AXuC6AEMz2VEfHnojTk8D_vZZMSM36s9IcUUkHBWZmd8rRkstNqcDvMAouvxgxRUBOuB7S2o5p-MMmCnfp6CzyW5rYFWkZPmItUvnlhEMk_p8fICVMGREUUmMzlVnmPyxe8thoZB3qEi1pw1xb-JYIG5YEVGJQtUmGj0rpIhvtD4xWO4J2pAJ7eLUzUZ8HUgDnPVNiT5Y7ORr2QJgsAmbuRKfex43I2MEL5mpOgT9nVaY2S-G3A8h5X3YaWhlafiuQIgydm7CIXxEa8cI");'>
+</div>
+</div>
+<div class="flex items-end gap-4">
+<div class="bg-center bg-no-repeat bg-cover rounded-full w-10 h-10 shrink-0 border border-[#283639]" data-alt="Abstract gradient avatar representing AI" style='background-image: url("https://lh3.googleusercontent.com/aida-public/AB6AXuD8W8J3REew5GwSe1Mwg3VaC0J0r225TzH_VDlzIP1SorYltFLbGMktHlq2qvBVspE-ADmM3FQMvsirLVX4IKV1fp84mh9XeUpZ8G--QtJKR664vVc6_AMhc8-pLMSMM5CJYXnr9wtERRSTZlhIHUysLKV1ni2xbwxWtmftZiqo_x7bVm2A8j7CDljs9Qwgfj8YCP5my32UgvPJqEtHgZrPTSjDeiNMEtULKmENjdaGcuJCsd6HCLTnJdCoG70ayjbyTQAruvp7gkcL");'>
+</div>
+<div class="flex flex-col gap-1 items-start max-w-[90%]">
+<div class="flex items-center gap-2">
+<span class="text-[#9db4b9] text-xs font-medium">Helix AI</span>
+</div>
+<div class="p-4 rounded-2xl rounded-bl-none bg-[#283639] text-white/90 text-[15px] leading-relaxed font-body shadow-sm w-full">
+<p class="mb-3">Excellent choix. Pour ce son légendaire ("The Wall" era), la clé est la combinaison d'une Big Muff dans un ampli Hiwatt clean poussé fort.</p>
+<p class="mb-4 text-sm text-[#9db4b9]">Voici la chaîne de signal proposée :</p>
+<div class="relative w-full rounded-xl border border-[#3f5256] bg-[#111718] p-4 py-8 mb-4 overflow-hidden">
+<div class="absolute top-1/2 left-0 w-full h-1 bg-[#283639] -translate-y-1/2 z-0"></div>
+<div class="relative z-10 flex flex-wrap items-center justify-center gap-4">
+<div class="flex flex-col items-center gap-2 group w-20 cursor-default">
+<div class="relative w-16 h-14 bg-[#ca8a04] hover:bg-[#eab308] rounded-md border-b-4 border-[#854d0e] shadow-lg flex items-center justify-center transition-all transform hover:-translate-y-1 z-10">
+<span class="material-symbols-outlined text-white font-bold drop-shadow-md">compress</span>
+<div class="absolute top-1 right-1 w-1.5 h-1.5 bg-red-500 rounded-full shadow-[0_0_5px_rgba(239,68,68,0.8)]"></div>
+</div>
+<span class="text-[10px] font-bold text-[#eab308] bg-[#111718]/80 px-1.5 py-0.5 rounded border border-[#283639]">DYN</span>
+<span class="text-[10px] text-gray-300 truncate w-full text-center">Red Squeeze</span>
+</div>
+<div class="flex flex-col items-center gap-2 group w-20 cursor-default">
+<div class="relative w-16 h-14 bg-[#ea580c] hover:bg-[#f97316] rounded-md border-b-4 border-[#9a3412] shadow-lg flex items-center justify-center transition-all transform hover:-translate-y-1 z-10">
+<span class="material-symbols-outlined text-white font-bold drop-shadow-md icon-filled">change_history</span>
+<div class="absolute top-1 right-1 w-1.5 h-1.5 bg-red-500 rounded-full shadow-[0_0_5px_rgba(239,68,68,0.8)]"></div>
+</div>
+<span class="text-[10px] font-bold text-[#f97316] bg-[#111718]/80 px-1.5 py-0.5 rounded border border-[#283639]">DIST</span>
+<span class="text-[10px] text-gray-300 truncate w-full text-center">Triangle Fuzz</span>
+</div>
+<div class="flex flex-col items-center gap-2 group w-20 cursor-default">
+<div class="relative w-16 h-14 bg-[#dc2626] hover:bg-[#ef4444] rounded-md border-b-4 border-[#991b1b] shadow-lg flex items-center justify-center transition-all transform hover:-translate-y-1 z-10">
+<span class="material-symbols-outlined text-white font-bold drop-shadow-md icon-filled">speaker</span>
+<div class="absolute top-1 right-1 w-1.5 h-1.5 bg-red-500 rounded-full shadow-[0_0_5px_rgba(239,68,68,0.8)]"></div>
+</div>
+<span class="text-[10px] font-bold text-[#ef4444] bg-[#111718]/80 px-1.5 py-0.5 rounded border border-[#283639]">AMP</span>
+<span class="text-[10px] text-gray-300 truncate w-full text-center">WhoWatt 100</span>
+</div>
+<div class="flex flex-col items-center gap-2 group w-20 cursor-default">
+<div class="relative w-16 h-14 bg-[#16a34a] hover:bg-[#22c55e] rounded-md border-b-4 border-[#14532d] shadow-lg flex items-center justify-center transition-all transform hover:-translate-y-1 z-10">
+<span class="material-symbols-outlined text-white font-bold drop-shadow-md">repeat</span>
+<div class="absolute top-1 right-1 w-1.5 h-1.5 bg-red-500 rounded-full shadow-[0_0_5px_rgba(239,68,68,0.8)]"></div>
+</div>
+<span class="text-[10px] font-bold text-[#22c55e] bg-[#111718]/80 px-1.5 py-0.5 rounded border border-[#283639]">DLY</span>
+<span class="text-[10px] text-gray-300 truncate w-full text-center">Elephant Man</span>
+</div>
+<div class="flex flex-col items-center gap-2 group w-20 cursor-default">
+<div class="relative w-16 h-14 bg-[#0891b2] hover:bg-[#06b6d4] rounded-md border-b-4 border-[#155e75] shadow-lg flex items-center justify-center transition-all transform hover:-translate-y-1 z-10">
+<span class="material-symbols-outlined text-white font-bold drop-shadow-md">blur_on</span>
+<div class="absolute top-1 right-1 w-1.5 h-1.5 bg-red-500 rounded-full shadow-[0_0_5px_rgba(239,68,68,0.8)]"></div>
+</div>
+<span class="text-[10px] font-bold text-[#06b6d4] bg-[#111718]/80 px-1.5 py-0.5 rounded border border-[#283639]">REV</span>
+<span class="text-[10px] text-gray-300 truncate w-full text-center">Plateaux</span>
+</div>
+</div>
+</div>
+<p>Voulez-vous que j'ajoute un Flanger léger pour les parties modulées ou restons-nous sur le pur son solo ?</p>
+<div class="mt-4 flex gap-2">
+<button class="px-3 py-1.5 rounded-md bg-[#1d2628] hover:bg-[#344549] text-xs font-medium text-white transition-colors border border-[#3f5256]">Ajouter Electric Mistress</button>
+<button class="px-3 py-1.5 rounded-md bg-[#1d2628] hover:bg-[#344549] text-xs font-medium text-white transition-colors border border-[#3f5256]">Non, c'est parfait</button>
+</div>
+</div>
+</div>
+</div>
+</div>
+</div>
+<div class="p-6 pt-2 bg-gradient-to-t from-[#111718] via-[#111718] to-transparent z-10">
+<div class="max-w-3xl mx-auto relative">
+<div class="absolute bottom-full mb-2 left-0 flex gap-2">
+<button class="bg-[#283639] hover:bg-[#344549] text-white text-xs px-3 py-1.5 rounded-full flex items-center gap-1 transition-colors border border-transparent hover:border-[#586e75]">
+<span class="material-symbols-outlined text-[14px]">tune</span>
+                        Ajuster le gain
+                    </button>
+<button class="bg-[#283639] hover:bg-[#344549] text-white text-xs px-3 py-1.5 rounded-full flex items-center gap-1 transition-colors border border-transparent hover:border-[#586e75]">
+<span class="material-symbols-outlined text-[14px]">autorenew</span>
+                        Changer d'ampli
+                    </button>
+</div>
+<div class="relative bg-[#1d2628] rounded-xl border border-[#3f5256] focus-within:border-primary/50 focus-within:ring-1 focus-within:ring-primary/50 transition-all shadow-lg">
+<textarea class="w-full bg-transparent text-white placeholder-[#586e75] text-sm p-4 pr-12 rounded-xl focus:outline-none resize-none font-body" placeholder="Décrivez votre modification ou validez le preset..." rows="1" style="min-height: 56px;"></textarea>
+<button class="absolute right-2 bottom-2 p-2 bg-primary hover:bg-[#0fb3d4] rounded-lg text-[#111718] transition-colors flex items-center justify-center">
+<span class="material-symbols-outlined text-[20px]">arrow_upward</span>
+</button>
+</div>
+<p class="text-center text-[#3f5256] text-[10px] mt-2 font-body">L'IA peut faire des erreurs. Vérifiez toujours vos niveaux de sortie avant de jouer.</p>
+</div>
+</div>
+</main>
+<div class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-[#111718]/80 backdrop-blur-sm">
+<div class="w-full max-w-lg bg-[#1d2628] border border-[#3f5256] rounded-2xl shadow-2xl relative overflow-hidden animate-in fade-in zoom-in duration-300">
+<div class="p-8 flex flex-col items-center">
+<div class="w-16 h-16 rounded-full bg-[#13c8ec]/10 flex items-center justify-center mb-6 shadow-[0_0_20px_rgba(19,200,236,0.1)]">
+<span class="material-symbols-outlined text-[#13c8ec] text-4xl">check</span>
+</div>
+<h3 class="text-2xl font-bold text-white mb-2 font-display">Preset généré avec succès</h3>
+<p class="text-[#9db4b9] text-center text-sm mb-8 font-body leading-relaxed">
+                Le fichier de configuration a été compilé et exporté. Vous pouvez maintenant l'importer dans votre pédalier Helix.
+            </p>
+<div class="w-full bg-[#111718] border border-[#283639] rounded-xl p-4 mb-8">
+<div class="flex items-center justify-between mb-2">
+<span class="text-[11px] font-bold text-[#586e75] uppercase tracking-wider font-display">Fichier enregistré sous :</span>
+<button class="text-[11px] text-[#13c8ec] cursor-pointer hover:text-white transition-colors font-body flex items-center gap-1">
+<span class="material-symbols-outlined text-[14px]">folder_open</span> Ouvrir le dossier
+                    </button>
+</div>
+<div class="flex items-center gap-3 font-mono text-sm text-gray-300 bg-[#0b0f10] p-3 rounded-lg border border-[#1d2628]">
+<span class="material-symbols-outlined text-[#586e75] text-lg">description</span>
+<span class="truncate">C:\Users\HelAIx\Exports\Gilmour_Lead_Tone.hlx</span>
+</div>
+</div>
+<button class="w-full bg-[#13c8ec] hover:bg-[#0fb3d4] text-[#111718] font-bold py-3.5 rounded-xl transition-all shadow-[0_0_15px_rgba(19,200,236,0.25)] hover:shadow-[0_0_25px_rgba(19,200,236,0.4)] font-display text-sm tracking-wide">
+                Fermer
+            </button>
+</div>
+</div>
+</div>
+
+</body></html>

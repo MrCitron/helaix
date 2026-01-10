@@ -1,0 +1,195 @@
+<!DOCTYPE html>
+<html class="dark" lang="fr"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Helix AI Composer - Paramètres</title>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&amp;family=Noto+Sans:wght@400;500;600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        "primary": "#13c8ec",
+                        "background-light": "#f6f8f8",
+                        "background-dark": "#101f22",
+                        "surface-dark": "#1c2527",
+                        "surface-light": "#ffffff",
+                        "border-dark": "#3b4f54",
+                        "border-light": "#e5e7eb",
+                        "text-secondary-dark": "#9db4b9",
+                        "text-secondary-light": "#6b7280",
+                    },
+                    fontFamily: {
+                        "display": ["Space Grotesk", "sans-serif"],
+                        "body": ["Noto Sans", "sans-serif"],
+                    },
+                    borderRadius: {"DEFAULT": "0.25rem", "lg": "0.5rem", "xl": "0.75rem", "full": "9999px"},
+                },
+            },
+        }
+    </script>
+<style>::-webkit-scrollbar {
+            width: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: transparent;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #3b4f54;
+            border-radius: 4px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #13c8ec;
+        }
+    </style>
+</head>
+<body class="font-display bg-background-light dark:bg-background-dark text-slate-900 dark:text-white antialiased transition-colors duration-200">
+<div class="relative flex min-h-screen flex-col overflow-hidden">
+<header class="flex items-center justify-between whitespace-nowrap border-b border-solid border-border-light dark:border-[#283639] px-6 lg:px-10 py-3 bg-surface-light dark:bg-background-dark sticky top-0 z-50">
+<div class="flex items-center gap-4">
+<div class="size-8 flex items-center justify-center rounded-lg bg-primary/10 text-primary">
+<span class="material-symbols-outlined text-[28px]">graphic_eq</span>
+</div>
+<h2 class="text-lg font-bold leading-tight tracking-[-0.015em]">Paramètres HelAIx</h2>
+</div>
+<div class="flex flex-1 justify-end gap-8 items-center">
+</div>
+</header>
+<main class="flex-1 flex flex-col items-center py-10 px-4 md:px-10 lg:px-40">
+<div class="layout-content-container flex flex-col max-w-[960px] w-full flex-1 gap-8">
+<div class="flex flex-wrap justify-between gap-3 px-4">
+<div class="flex min-w-72 flex-col gap-3">
+<h1 class="text-4xl font-black leading-tight tracking-[-0.033em] text-slate-900 dark:text-white">Paramètres</h1>
+<p class="text-text-secondary-light dark:text-[#9db4b9] text-base font-normal leading-normal max-w-2xl">
+                        Configurez votre fournisseur d'IA, gérez vos clés API locales et définissez vos préférences d'exportation pour vos fichiers .hlx.
+                    </p>
+</div>
+</div>
+<section class="flex flex-col gap-4">
+<div class="px-4 pb-2 pt-4 border-b border-border-light dark:border-border-dark flex items-center gap-3">
+<span class="material-symbols-outlined text-primary">psychology</span>
+<h2 class="text-xl font-bold leading-tight tracking-[-0.015em]">Intelligence Artificielle</h2>
+</div>
+<div class="grid grid-cols-1 md:grid-cols-2 gap-6 px-4 py-2">
+<label class="flex flex-col flex-1 gap-2">
+<p class="text-base font-medium leading-normal">Fournisseur d'IA</p>
+<div class="relative">
+<select class="w-full appearance-none rounded-lg border border-border-light dark:border-border-dark bg-surface-light dark:bg-surface-dark px-4 h-14 text-base focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary transition-all cursor-pointer">
+<option selected="" value="google">Google Cloud Vertex AI</option>
+<option value="openai">OpenAI</option>
+<option value="anthropic">Anthropic</option>
+</select>
+<div class="pointer-events-none absolute inset-y-0 right-0 flex items-center px-4 text-text-secondary-light dark:text-text-secondary-dark">
+<span class="material-symbols-outlined">expand_more</span>
+</div>
+</div>
+</label>
+<label class="flex flex-col flex-1 gap-2">
+<div class="flex items-center gap-2">
+<p class="text-base font-medium leading-normal">Modèle LLM</p>
+<span class="material-symbols-outlined text-sm text-text-secondary-light dark:text-text-secondary-dark cursor-help" title="Le modèle qui sera utilisé pour générer les presets">help</span>
+</div>
+<div class="relative">
+<select class="w-full appearance-none rounded-lg border border-border-light dark:border-border-dark bg-surface-light dark:bg-surface-dark px-4 h-14 text-base focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary transition-all cursor-pointer">
+<option selected="" value="gemini-pro">Gemini 1.5 Pro</option>
+<option value="gemini-flash">Gemini 1.5 Flash</option>
+<option value="gemini-ultra">Gemini Ultra</option>
+</select>
+<div class="pointer-events-none absolute inset-y-0 right-0 flex items-center px-4 text-text-secondary-light dark:text-text-secondary-dark">
+<span class="material-symbols-outlined">expand_more</span>
+</div>
+</div>
+</label>
+</div>
+<div class="px-4 py-2">
+<label class="flex flex-col flex-1 gap-2">
+<p class="text-base font-medium leading-normal">Clé API</p>
+<div class="flex flex-col md:flex-row gap-3">
+<div class="relative flex-1">
+<div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+<span class="material-symbols-outlined text-text-secondary-light dark:text-text-secondary-dark">key</span>
+</div>
+<input class="w-full rounded-lg border border-border-light dark:border-border-dark bg-surface-light dark:bg-surface-dark pl-10 pr-12 h-14 text-base focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary transition-all placeholder:text-text-secondary-light dark:placeholder:text-text-secondary-dark/50" placeholder="Entrez votre clé API..." type="password" value="sk-ant-api03-ThisIsAFakeKeyForDesignPurpose-89s7d8f7"/>
+<button class="absolute inset-y-0 right-0 pr-3 flex items-center text-text-secondary-light dark:text-text-secondary-dark hover:text-primary transition-colors">
+<span class="material-symbols-outlined">visibility_off</span>
+</button>
+</div>
+<button class="flex items-center justify-center gap-2 h-14 px-6 rounded-lg bg-surface-light dark:bg-surface-dark border border-border-light dark:border-border-dark hover:border-primary hover:text-primary transition-all font-medium whitespace-nowrap group">
+<span class="material-symbols-outlined group-hover:animate-pulse">wifi_tethering</span>
+                                Tester la connexion
+                            </button>
+</div>
+<p class="text-xs text-text-secondary-light dark:text-text-secondary-dark mt-1 flex items-center gap-1">
+<span class="material-symbols-outlined text-[14px]">lock</span>
+                            Votre clé est stockée localement sur votre machine et n'est jamais partagée.
+                        </p>
+</label>
+</div>
+</section>
+<section class="flex flex-col gap-4">
+<div class="px-4 pb-2 pt-4 border-b border-border-light dark:border-border-dark flex items-center gap-3">
+<span class="material-symbols-outlined text-primary">folder_open</span>
+<h2 class="text-xl font-bold leading-tight tracking-[-0.015em]">Exportation &amp; Fichiers</h2>
+</div>
+<div class="px-4 py-2">
+<label class="flex flex-col flex-1 gap-2">
+<p class="text-base font-medium leading-normal">Dossier cible (.hlx)</p>
+<div class="flex flex-col md:flex-row gap-3">
+<div class="relative flex-1">
+<input class="w-full rounded-lg border border-border-light dark:border-border-dark bg-slate-100 dark:bg-[#151c1e] text-text-secondary-light dark:text-text-secondary-dark px-4 h-14 text-base focus:outline-none cursor-not-allowed opacity-80 font-mono text-sm" readonly="" type="text" value="C:/Users/Music/Documents/Line6/Helix/Presets/AI_Generated"/>
+</div>
+<button class="flex items-center justify-center gap-2 h-14 px-6 rounded-lg bg-primary/10 hover:bg-primary/20 text-primary border border-transparent hover:border-primary/30 transition-all font-medium whitespace-nowrap">
+<span class="material-symbols-outlined">folder</span>
+                                Parcourir
+                            </button>
+</div>
+<p class="text-xs text-text-secondary-light dark:text-text-secondary-dark mt-1">
+                            Les fichiers générés seront automatiquement sauvegardés dans ce dossier local.
+                        </p>
+</label>
+</div>
+<div class="px-4 py-4 grid grid-cols-1 md:grid-cols-2 gap-4">
+<label class="flex items-start gap-4 p-4 rounded-xl border border-border-light dark:border-border-dark bg-surface-light dark:bg-surface-dark cursor-pointer hover:border-primary/50 transition-colors group">
+<div class="relative flex items-center">
+<input checked="" class="peer h-5 w-5 cursor-pointer appearance-none rounded-md border border-text-secondary-light dark:border-text-secondary-dark bg-transparent checked:bg-primary checked:border-primary transition-all" type="checkbox"/>
+<span class="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 text-black opacity-0 peer-checked:opacity-100 material-symbols-outlined text-[16px] pointer-events-none font-bold">check</span>
+</div>
+<div class="flex flex-col">
+<span class="text-sm font-bold group-hover:text-primary transition-colors">Écraser les fichiers existants</span>
+<span class="text-xs text-text-secondary-light dark:text-text-secondary-dark">Si un fichier du même nom existe, le remplacer sans demander.</span>
+</div>
+</label>
+<label class="flex items-start gap-4 p-4 rounded-xl border border-border-light dark:border-border-dark bg-surface-light dark:bg-surface-dark cursor-pointer hover:border-primary/50 transition-colors group">
+<div class="relative flex items-center">
+<input class="peer h-5 w-5 cursor-pointer appearance-none rounded-md border border-text-secondary-light dark:border-text-secondary-dark bg-transparent checked:bg-primary checked:border-primary transition-all" type="checkbox"/>
+<span class="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 text-black opacity-0 peer-checked:opacity-100 material-symbols-outlined text-[16px] pointer-events-none font-bold">check</span>
+</div>
+<div class="flex flex-col">
+<span class="text-sm font-bold group-hover:text-primary transition-colors">Ouvrir le dossier après export</span>
+<span class="text-xs text-text-secondary-light dark:text-text-secondary-dark">Ouvre automatiquement l'explorateur de fichiers.</span>
+</div>
+</label>
+</div>
+</section>
+<div class="sticky bottom-4 mx-4 mt-6 p-4 rounded-xl bg-surface-light dark:bg-[#1a2325] border border-border-light dark:border-border-dark shadow-xl flex flex-col-reverse sm:flex-row items-center justify-between gap-4 backdrop-blur-md bg-opacity-90 dark:bg-opacity-90 z-40">
+<div class="flex items-center gap-2 text-sm text-text-secondary-light dark:text-text-secondary-dark">
+<span class="material-symbols-outlined text-green-500">check_circle</span>
+                    Tous les systèmes sont opérationnels
+                </div>
+<div class="flex w-full sm:w-auto gap-3">
+<button class="flex-1 sm:flex-none h-10 px-6 rounded-lg border border-border-light dark:border-border-dark text-slate-700 dark:text-white hover:bg-slate-100 dark:hover:bg-white/5 transition-colors font-medium text-sm">
+                        Annuler
+                    </button>
+<button class="flex-1 sm:flex-none h-10 px-6 rounded-lg bg-primary text-black hover:bg-cyan-300 transition-colors font-bold text-sm shadow-[0_0_15px_rgba(19,200,236,0.3)] hover:shadow-[0_0_20px_rgba(19,200,236,0.5)]">
+                        Enregistrer
+                    </button>
+</div>
+</div>
+<div class="h-10"></div>
+</div>
+</main>
+</div>
+</body></html>

@@ -1,0 +1,9 @@
+build/bin
+node_modules
+frontend/dist
+HelAIx.exe
+frontend/build_log.txt
+frontend/build_error.log
+tools/**/*
+resources/*.pdf
+workspace.code-workspace
