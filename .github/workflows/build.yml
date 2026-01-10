@@ -21,9 +21,11 @@ jobs:
           - os: windows-latest
             name: windows
             target: helaix.exe
+            additional_params: ""
           - os: macos-latest
             name: darwin
             target: HelAIx.app.zip
+            additional_params: "-platform darwin/universal"
     
     runs-on: ${{ matrix.platform.os }}
     
@@ -49,7 +51,7 @@ jobs:
         run: go install github.com/wailsapp/wails/v2/cmd/wails@latest
 
       - name: Build application
-        run: wails build
+        run: wails build ${{ matrix.platform.additional_params }}
 
       - name: Zip macOS .app bundle
         if: matrix.platform.name == 'darwin'
