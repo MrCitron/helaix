@@ -184,13 +184,12 @@ const Settings = ({ config, onSave }) => {
                                 <button
                                     onClick={handleTestConnection}
                                     disabled={testStatus === 'testing'}
-                                    className={`flex items-center justify-center gap-2 h-14 px-6 rounded-lg border font-medium whitespace-nowrap transition-all disabled:opacity-50 ${
-                                        testStatus === 'success'
+                                    className={`flex items-center justify-center gap-2 h-14 px-6 rounded-lg border font-medium whitespace-nowrap transition-all disabled:opacity-50 ${testStatus === 'success'
                                             ? 'bg-green-500/10 border-green-500 text-green-500'
                                             : testStatus === 'error'
-                                            ? 'bg-red-500/10 border-red-500 text-red-500'
-                                            : 'bg-surface-light dark:bg-surface-dark border-border-light dark:border-border-dark hover:border-primary hover:text-primary'
-                                    }`}
+                                                ? 'bg-red-500/10 border-red-500 text-red-500'
+                                                : 'bg-surface-light dark:bg-surface-dark border-border-light dark:border-border-dark hover:border-primary hover:text-primary'
+                                        }`}
                                 >
                                     <span className={`material-symbols-outlined ${testStatus === 'testing' ? 'animate-spin' : ''}`}>
                                         {testStatus === 'testing' ? 'sync' : testStatus === 'success' ? 'check_circle' : testStatus === 'error' ? 'cancel' : 'wifi_tethering'}
@@ -242,7 +241,7 @@ const Settings = ({ config, onSave }) => {
                         <h2 className="text-xl font-bold leading-tight tracking-tight">{t('settings.hardwareTarget')}</h2>
                     </div>
 
-                    <div className="px-4 py-2">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6 px-4 py-2">
                         <label className="flex flex-col flex-1 gap-2">
                             <p className="text-base font-medium leading-normal">{t('settings.hardwareTarget')}</p>
                             <div className="relative">
@@ -268,6 +267,29 @@ const Settings = ({ config, onSave }) => {
                             <p className="text-xs text-text-muted mt-1 flex items-center gap-1">
                                 <span className="material-symbols-outlined text-[14px]">info</span>
                                 {t('settings.hardwareHint')}
+                            </p>
+                        </label>
+
+                        <label className="flex flex-col flex-1 gap-2">
+                            <p className="text-base font-medium leading-normal">{t('settings.defaultExpPedal')}</p>
+                            <div className="relative">
+                                <select
+                                    value={localConfig.default_exp_pedal}
+                                    onChange={(e) => setLocalConfig({ ...localConfig, default_exp_pedal: parseInt(e.target.value) })}
+                                    className="w-full appearance-none rounded-lg border border-border-light dark:border-border-dark bg-surface-light dark:bg-surface-dark px-4 h-14 text-base focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary transition-all cursor-pointer"
+                                >
+                                    <option value="0">{t('settings.expOptions.none')}</option>
+                                    <option value="1">{t('settings.expOptions.exp1')}</option>
+                                    <option value="2">{t('settings.expOptions.exp2')}</option>
+                                    <option value="3">{t('settings.expOptions.exp3')}</option>
+                                </select>
+                                <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-4 text-text-muted">
+                                    <span className="material-symbols-outlined">expand_more</span>
+                                </div>
+                            </div>
+                            <p className="text-xs text-text-muted mt-1 flex items-center gap-1">
+                                <span className="material-symbols-outlined text-[14px]">settings_input_component</span>
+                                {t('settings.defaultExpHint')}
                             </p>
                         </label>
                     </div>

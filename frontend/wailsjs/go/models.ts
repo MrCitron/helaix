@@ -8,6 +8,7 @@ export namespace config {
 	    hardware_target: string;
 	    delete_no_confirm: boolean;
 	    incremental_save: boolean;
+	    default_exp_pedal: number;
 	
 	    static createFrom(source: any = {}) {
 	        return new AppConfig(source);
@@ -22,6 +23,7 @@ export namespace config {
 	        this.hardware_target = source["hardware_target"];
 	        this.delete_no_confirm = source["delete_no_confirm"];
 	        this.incremental_save = source["incremental_save"];
+	        this.default_exp_pedal = source["default_exp_pedal"];
 	    }
 	}
 

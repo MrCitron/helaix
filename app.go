@@ -76,7 +76,7 @@ func (a *App) GxChatPresetEngineer(rig gemini.RigDescription, presetName string,
 	}
 	defer client.Close()
 
-	return client.ChatPresetEngineer(a.ctx, &rig, presetName, history, cfg.HardwareTarget)
+	return client.ChatPresetEngineer(a.ctx, &rig, presetName, history, cfg.HardwareTarget, cfg.DefaultExpPedal)
 }
 
 // GxSaveFile saves the preset to the disk and returns the full path

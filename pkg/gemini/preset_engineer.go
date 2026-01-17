@@ -11,7 +11,7 @@ import (
 )
 
 // ChatPresetEngineer takes the abstract rig and maps it to specific Helix Blocks, or refines an existing implementation
-func (c *Client) ChatPresetEngineer(ctx context.Context, rig *RigDescription, presetName string, history []ChatMessage, hardware string) (*helix.Preset, error) {
+func (c *Client) ChatPresetEngineer(ctx context.Context, rig *RigDescription, presetName string, history []ChatMessage, hardware string, defaultExp int) (*helix.Preset, error) {
 	// 1. Prepare Catalog Context
 	helix.DB.EnsureLoaded()
 
@@ -54,6 +54,9 @@ func (c *Client) ChatPresetEngineer(ctx context.Context, rig *RigDescription, pr
 	- If the hardware has 2 paths, you can distribute blocks between them to avoid clipping.
 	- Path 1 is "path": 0, Path 2 is "path": 1.
 	- If the hardware has only 1 path, use "path": 0 for everything.
+
+	PARAMETER CONSTRAINTS:
+	- For Reverb blocks, NEVER set "Decay" or "VerbDecay" to its maximum value (1.0). Keep it at 0.7 or lower to avoid excessive noise/feedback loops.
 
 	OUTPUT INSTRUCTIONS:
 	- Return ONLY a JSON object with a "blocks" array.
@@ -152,6 +155,20 @@ func (c *Client) ChatPresetEngineer(ctx context.Context, rig *RigDescription, pr
 		return nil
 	}
 
+	// Helper to get controller map
+	getController := func() map[string]interface{} {
+		if data, ok := (*preset)["data"].(map[string]interface{}); ok {
+			if tone, ok := data["tone"].(map[string]interface{}); ok {
+				if ctrl, ok := tone["controller"].(map[string]interface{}); ok {
+					if d, ok := ctrl["dsp0"].(map[string]interface{}); ok {
+						return d
+					}
+				}
+			}
+		}
+		return nil
+	}
+
 	// Loop and place blocks
 	path0Count := 0
 	path1Count := 0
@@ -214,6 +231,14 @@ func (c *Client) ChatPresetEngineer(ctx context.Context, rig *RigDescription, pr
 		}
 
 		for k, v := range b.Params {
+			// Reverb Decay Sanitization (Reverbs and Delays with Reverb tails)
+			isReverb := strings.HasPrefix(internalID, "HD2_Reverb") || strings.HasPrefix(internalID, "VIC_Reverb")
+			isDelay := strings.HasPrefix(internalID, "HD2_Delay") || strings.HasPrefix(internalID, "VIC_Delay")
+			if (isReverb && (k == "Decay" || k == "VerbDecay")) || (isDelay && k == "VerbDecay") {
+				if val, ok := v.(float64); ok && val >= 0.7 {
+					v = 0.7
+				}
+			}
 			finalParams[k] = v
 		}
 
@@ -222,6 +247,26 @@ func (c *Client) ChatPresetEngineer(ctx context.Context, rig *RigDescription, pr
 		if dsp != nil {
 			blockKey := fmt.Sprintf("block%d", pos)
 			dsp[blockKey] = finalParams
+
+			// Default Expression Pedal Assignment
+			if defaultExp > 0 {
+				isWah := strings.HasPrefix(internalID, "HD2_Wah")
+				isVol := strings.HasPrefix(internalID, "HD2_Vol")
+				isPitch := strings.HasPrefix(internalID, "HD2_PitchPitchWham")
+				if isWah || isVol || isPitch {
+					ctrls := getController()
+					if ctrls != nil {
+						ctrls[blockKey] = map[string]interface{}{
+							"Pedal": map[string]interface{}{
+								"@controller":       defaultExp,
+								"@max":              1.0,
+								"@min":              0.0,
+								"@snapshot_disable": false,
+							},
+						}
+					}
+				}
+			}
 
 			// Sync snapshot
 			if data, ok := (*preset)["data"].(map[string]interface{}); ok {

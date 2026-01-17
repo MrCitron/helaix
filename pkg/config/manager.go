@@ -15,6 +15,7 @@ type AppConfig struct {
 	HardwareTarget  string `json:"hardware_target"`
 	DeleteNoConfirm bool   `json:"delete_no_confirm"`
 	IncrementalSave bool   `json:"incremental_save"`
+	DefaultExpPedal int    `json:"default_exp_pedal"` // 0 = None, 1 = Exp 1, 2 = Exp 2, 3 = Exp 3
 }
 
 type Manager struct {
@@ -37,10 +38,11 @@ func NewManager() *Manager {
 	m := &Manager{
 		configPath: configPath,
 		config: AppConfig{
-			Provider:       "Google", // Gemini API (not Vertex AI)
-			Model:          "gemini-2.5-flash", // Updated to current stable model
-			OutputPath:     defaultOutPath,
-			HardwareTarget: "Helix Floor",
+			Provider:        "Google",           // Gemini API (not Vertex AI)
+			Model:           "gemini-2.5-flash", // Updated to current stable model
+			OutputPath:      defaultOutPath,
+			HardwareTarget:  "Helix Floor",
+			DefaultExpPedal: 1, // Default to Exp 1
 		},
 	}
 	m.Load()

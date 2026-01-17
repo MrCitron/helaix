@@ -67,7 +67,15 @@ const translations = {
             save: "Save",
             interfaceSection: "Interface",
             deleteNoConfirm: "Delete without confirmation",
-            deleteNoConfirmHint: "Skip the confirmation popup when deleting a chat."
+            deleteNoConfirmHint: "Skip the confirmation popup when deleting a chat.",
+            defaultExpPedal: "Default Expression Pedal",
+            defaultExpHint: "The assigned controller for Wah, Volume, and Pitch Wham by default.",
+            expOptions: {
+                none: "Nothing",
+                exp1: "Exp 1",
+                exp2: "Exp 2",
+                exp3: "Exp 3"
+            }
         }
     },
     fr: {
@@ -136,7 +144,15 @@ const translations = {
             save: "Enregistrer",
             interfaceSection: "Interface",
             deleteNoConfirm: "Supprimer sans confirmation",
-            deleteNoConfirmHint: "Passer la fenêtre de confirmation lors de la suppression d'un chat."
+            deleteNoConfirmHint: "Passer la fenêtre de confirmation lors de la suppression d'un chat.",
+            defaultExpPedal: "Pédale d'Expression par Défaut",
+            defaultExpHint: "Le contrôleur assigné par défaut pour les blocs Wah, Volume et Pitch Wham.",
+            expOptions: {
+                none: "Rien",
+                exp1: "Exp 1",
+                exp2: "Exp 2",
+                exp3: "Exp 3"
+            }
         }
     }
 };
