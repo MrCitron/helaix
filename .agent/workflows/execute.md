@@ -4,7 +4,7 @@ description: Build the feature from the plan.
 
 ## Instructions
 
-1.  **Read**: Open `specs/[feature_name]/plan.md`.
+1.  **Read**: Open `specs/[feature_name]/plan.md`. If it does not exists, simply proceed with the implementation.
 2.  **Execute**:
     * Look for the **Step-by-Step** section with checkboxes.
     * Execute the unchecked items `- [ ]`.

@@ -45,6 +45,8 @@ This application has currently only been tested on a **Helix Floor** with **Firm
 - **Frontend**: React + Tailwind CSS
 - **Framework**: [Wails](https://wails.io/) (Cross-platform Desktop Apps)
 - **AI Integration**: Google Gemini API
+- **Google Antigravity**: [Google Antigravity](https://antigravity.google/)
+- **Spec Kit for Google Antigravity**: [spec-kit-antigravity](https://github.com/waveupHQ/spec-kit-antigravity)
 
 
 ## 👷‍♂️Getting Started (Build from source)

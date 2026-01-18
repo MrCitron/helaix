@@ -44,16 +44,19 @@ jobs:
           node-version: '20'
 
       - name: Install frontend dependencies
-        working-directory: frontend
+        working-directory: app/frontend
         run: npm install
 
       - name: Install Wails
+        working-directory: app
         run: go install github.com/wailsapp/wails/v2/cmd/wails@latest
 
       - name: Build application
+        working-directory: app
         run: wails build ${{ matrix.platform.additional_params }}
 
       - name: Zip macOS .app bundle
+        working-directory: app
         if: matrix.platform.name == 'darwin'
         run: |
           cd build/bin
@@ -64,7 +67,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: helaix-${{ matrix.platform.name }}
-          path: build/bin/${{ matrix.platform.target }}
+          path: app/build/bin/${{ matrix.platform.target }}
 
   release:
     needs: build
