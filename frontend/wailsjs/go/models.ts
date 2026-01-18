@@ -9,6 +9,8 @@ export namespace config {
 	    delete_no_confirm: boolean;
 	    incremental_save: boolean;
 	    default_exp_pedal: number;
+	    variax_enabled: boolean;
+	    variax_hardware_model: string;
 	
 	    static createFrom(source: any = {}) {
 	        return new AppConfig(source);
@@ -24,6 +26,8 @@ export namespace config {
 	        this.delete_no_confirm = source["delete_no_confirm"];
 	        this.incremental_save = source["incremental_save"];
 	        this.default_exp_pedal = source["default_exp_pedal"];
+	        this.variax_enabled = source["variax_enabled"];
+	        this.variax_hardware_model = source["variax_hardware_model"];
 	    }
 	}
 
@@ -66,6 +70,8 @@ export namespace gemini {
 	export class RigDescription {
 	    suggested_name: string;
 	    explanation: string;
+	    guitar_model: string;
+	    tuning: string;
 	    chain: RigComponent[];
 	
 	    static createFrom(source: any = {}) {
@@ -76,6 +82,8 @@ export namespace gemini {
 	        if ('string' === typeof source) source = JSON.parse(source);
 	        this.suggested_name = source["suggested_name"];
 	        this.explanation = source["explanation"];
+	        this.guitar_model = source["guitar_model"];
+	        this.tuning = source["tuning"];
 	        this.chain = this.convertValues(source["chain"], RigComponent);
 	    }
 	

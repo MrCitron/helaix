@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useI18n } from '../i18n';
 import { GxSaveConfig, GxTestConnection, GxSelectFolder, GxGetDefaultOutputPath, GxListModels } from '../../wailsjs/go/main/App';
+import { HelixIcons } from './IconLibrary';
 
 const Settings = ({ config, onSave }) => {
     const { t, lang, changeLang } = useI18n();
@@ -185,10 +186,10 @@ const Settings = ({ config, onSave }) => {
                                     onClick={handleTestConnection}
                                     disabled={testStatus === 'testing'}
                                     className={`flex items-center justify-center gap-2 h-14 px-6 rounded-lg border font-medium whitespace-nowrap transition-all disabled:opacity-50 ${testStatus === 'success'
-                                            ? 'bg-green-500/10 border-green-500 text-green-500'
-                                            : testStatus === 'error'
-                                                ? 'bg-red-500/10 border-red-500 text-red-500'
-                                                : 'bg-surface-light dark:bg-surface-dark border-border-light dark:border-border-dark hover:border-primary hover:text-primary'
+                                        ? 'bg-green-500/10 border-green-500 text-green-500'
+                                        : testStatus === 'error'
+                                            ? 'bg-red-500/10 border-red-500 text-red-500'
+                                            : 'bg-surface-light dark:bg-surface-dark border-border-light dark:border-border-dark hover:border-primary hover:text-primary'
                                         }`}
                                 >
                                     <span className={`material-symbols-outlined ${testStatus === 'testing' ? 'animate-spin' : ''}`}>
@@ -290,6 +291,57 @@ const Settings = ({ config, onSave }) => {
                             <p className="text-xs text-text-muted mt-1 flex items-center gap-1">
                                 <span className="material-symbols-outlined text-[14px]">settings_input_component</span>
                                 {t('settings.defaultExpHint')}
+                            </p>
+                        </label>
+                    </div>
+                </section>
+
+                {/* Variax Section */}
+                <section className="flex flex-col gap-4">
+                    <div className="px-4 pb-2 pt-4 border-b border-border-light dark:border-border-dark flex items-center gap-3">
+                        <div className="w-6 h-6 text-primary flex items-center justify-center">
+                            <HelixIcons.Guitar className="w-full h-full" />
+                        </div>
+                        <h2 className="text-xl font-bold leading-tight tracking-tight">{t('settings.variaxSection')}</h2>
+                    </div>
+
+                    <div className="px-4 py-2 flex flex-col gap-6">
+                        {/* Control Toggle */}
+                        <div className="flex items-center justify-between p-4 bg-surface-light dark:bg-[#151c1e] rounded-xl border border-border-light dark:border-border-dark hover:border-primary/30 transition-all group">
+                            <div className="flex flex-col gap-0.5">
+                                <p className="text-base font-medium text-slate-900 dark:text-white group-hover:text-primary transition-colors">{t('settings.variaxEnabled')}</p>
+                                <p className="text-xs text-text-muted">{t('settings.variaxEnabledHint')}</p>
+                            </div>
+                            <button
+                                onClick={() => setLocalConfig({ ...localConfig, variax_enabled: !localConfig.variax_enabled })}
+                                className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 dark:focus:ring-offset-background-dark ${localConfig.variax_enabled ? 'bg-primary' : 'bg-slate-300 dark:bg-border-dark'}`}
+                            >
+                                <span
+                                    className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${localConfig.variax_enabled ? 'translate-x-6' : 'translate-x-1'}`}
+                                />
+                            </button>
+                        </div>
+
+                        {/* Hardware Model selection */}
+                        <label className={`flex flex-col gap-2 transition-opacity ${localConfig.variax_enabled ? 'opacity-100' : 'opacity-50 pointer-events-none'}`}>
+                            <p className="text-base font-medium leading-normal">{t('settings.variaxHardwareModel')}</p>
+                            <div className="relative">
+                                <select
+                                    value={localConfig.variax_hardware_model}
+                                    onChange={(e) => setLocalConfig({ ...localConfig, variax_hardware_model: e.target.value })}
+                                    className="w-full appearance-none rounded-lg border border-border-light dark:border-border-dark bg-surface-light dark:bg-surface-dark px-4 h-14 text-base focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary transition-all cursor-pointer"
+                                >
+                                    <option value="Standard">Variax Standard</option>
+                                    <option value="JTV">James Tyler Variax (JTV)</option>
+                                    <option value="Shuriken">Variax Shuriken</option>
+                                </select>
+                                <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none text-text-muted">
+                                    <span className="material-symbols-outlined">expand_more</span>
+                                </div>
+                            </div>
+                            <p className="text-xs text-text-muted mt-1 flex items-center gap-1">
+                                <span className="material-symbols-outlined text-[14px]">info</span>
+                                {t('settings.variaxHardwareHint')}
                             </p>
                         </label>
                     </div>

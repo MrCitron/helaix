@@ -22,6 +22,13 @@ export const HelixIcons = {
             <path d="M3 12h3l3-6 6 12 3-6h3" strokeLinecap="round" strokeLinejoin="round" />
         </svg>
     ),
+    // Guitar (Body with neck)
+    Guitar: ({ className }) => (
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" className={className}>
+            {/* Stylized V for Variax */}
+            <path d="M4 4l8 16 8-16" />
+        </svg>
+    ),
     // Dynamics (Spark/Lightning)
     Dynamics: ({ className }) => (
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className={className}>
@@ -88,6 +95,7 @@ export const getIconForBlock = (block) => {
 
     if (type === 1 || type === 2 || type === 3) return HelixIcons.Amp;
     if (type === 4) return HelixIcons.Cab;
+    if (type === "variax") return HelixIcons.Guitar;
 
     if (model.includes("Dist") || model.includes("Kinky") || model.includes("Scream") || model.includes("Minotaur")) return HelixIcons.Distortion;
     if (model.includes("Delay")) return HelixIcons.Delay;
@@ -98,6 +106,8 @@ export const getIconForBlock = (block) => {
     if (model.includes("Wah")) return HelixIcons.Wah;
     if (model.includes("Volume") || model.includes("Pan")) return HelixIcons.Volume;
 
+    if (type === "variax") return HelixIcons.Guitar;
+
     return HelixIcons.FX;
 };
 
@@ -107,6 +117,7 @@ export const getBlockColor = (block) => {
 
     if (type === 1 || type === 2 || type === 3) return "#FF5252"; // Amp (Red)
     if (type === 4) return "#D32F2F"; // Cab (Dark Red)
+    if (type === "variax") return '#9C27B0'; // Variax
 
     if (model.includes("Dist") || model.includes("Kinky") || model.includes("Scream")) return "#FF5722"; // Distortion (Orange)
     if (model.includes("Delay")) return "#4CAF50"; // Delay (Green)
@@ -117,5 +128,5 @@ export const getBlockColor = (block) => {
     if (model.includes("Wah")) return "#9C27B0"; // Wah (Purple)
     if (model.includes("Volume") || model.includes("Pan")) return "#00BCD4"; // Vol (Cyan)
 
-    return "#607D8B"; // Default
+    return "#607D8B"; // Default (Gray)
 };

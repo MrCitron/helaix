@@ -75,6 +75,24 @@ const translations = {
                 exp1: "Exp 1",
                 exp2: "Exp 2",
                 exp3: "Exp 3"
+            },
+            variaxSection: "Variax Control",
+            variaxEnabled: "Automatic Variax Control",
+            variaxEnabledHint: "Automatically configure your Variax guitar's model and tuning.",
+            variaxHardwareModel: "Variax Hardware Model",
+            variaxHardwareHint: "Select your specific Variax guitar for accurate modeling.",
+            variaxOptions: {
+                none: "Don't Force",
+                tModel: "T-Model",
+                spank: "Spank",
+                lester: "Lester",
+                special: "Special",
+                rbilly: "R-Billy",
+                chime: "Chime",
+                semi: "Semi",
+                jazzbox: "Jazzbox",
+                acoustic: "Acoustic",
+                reso: "Reso/Other"
             }
         }
     },
@@ -152,6 +170,24 @@ const translations = {
                 exp1: "Exp 1",
                 exp2: "Exp 2",
                 exp3: "Exp 3"
+            },
+            variaxSection: "Contrôle Variax",
+            variaxEnabled: "Contrôle Variax Automatique",
+            variaxEnabledHint: "Configure automatiquement le modèle et l'accordage de votre guitare Variax.",
+            variaxHardwareModel: "Modèle de Guitare Variax",
+            variaxHardwareHint: "Sélectionnez votre guitare Variax spécifique pour un modelage précis.",
+            variaxOptions: {
+                none: "Ne pas forcer",
+                tModel: "T-Model",
+                spank: "Spank",
+                lester: "Lester",
+                special: "Special",
+                rbilly: "R-Billy",
+                chime: "Chime",
+                semi: "Semi",
+                jazzbox: "Jazzbox",
+                acoustic: "Acoustic",
+                reso: "Reso/Autre"
             }
         }
     }

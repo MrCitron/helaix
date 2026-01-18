@@ -9,6 +9,7 @@ const typeConfig = {
     reverb: { Icon: HelixIcons.Reverb, color: 'bg-[#FF9800]', hoverColor: 'hover:bg-[#FFB74D]', borderColor: 'border-[#F57C00]', text: 'text-[#FFB74D]', label: 'REV' },
     modulation: { Icon: HelixIcons.Modulation, color: 'bg-[#2196F3]', hoverColor: 'hover:bg-[#64B5F6]', borderColor: 'border-[#1976D2]', text: 'text-[#64B5F6]', label: 'MOD' },
     cab: { Icon: HelixIcons.Cab, color: 'bg-[#D32F2F]', hoverColor: 'hover:bg-[#EF5350]', borderColor: 'border-[#B71C1C]', text: 'text-[#EF5350]', label: 'CAB' },
+    variax: { Icon: HelixIcons.Guitar, color: 'bg-[#9C27B0]', hoverColor: 'hover:bg-[#AB47BC]', borderColor: 'border-[#7B1FA2]', text: 'text-[#AB47BC]', label: 'VARX' },
     default: { Icon: HelixIcons.FX, color: 'bg-[#607D8B]', hoverColor: 'hover:bg-[#78909C]', borderColor: 'border-[#455A64]', text: 'text-[#B0BEC5]', label: 'FX' }
 };
 
@@ -20,7 +21,25 @@ const DesignVisualizer = ({ design, onGenerate }) => {
     return (
         <div className="flex flex-col gap-6 w-full">
             <div className="relative w-full rounded-xl border border-slate-300 dark:border-[#3f5256] bg-white dark:bg-background-dark p-4 py-8 overflow-hidden">
-                <h3 className="text-slate-500 dark:text-text-muted uppercase text-[10px] font-bold tracking-[0.2em] pl-2 mb-6 opacity-50">{t('chat.realChain')}</h3>
+                <div className="flex justify-between items-center px-2 mb-6 opacity-80">
+                    <h3 className="text-slate-500 dark:text-text-muted uppercase text-[10px] font-bold tracking-[0.2em]">{t('chat.realChain')}</h3>
+                    {(design.guitar_model || design.tuning) && (
+                        <div className="flex items-center gap-3 text-primary text-[11px] font-bold">
+                            {/* Guitar Model Name */}
+                            {design.guitar_model && (
+                                <div className="flex items-center gap-1.5 bg-primary/10 px-2 py-1 rounded">
+                                    <span>{design.guitar_model}</span>
+                                </div>
+                            )}
+
+                            {/* Tuning Info (Default to Standard if empty) */}
+                            <div className="flex items-center gap-1">
+                                <span className="material-symbols-outlined text-sm">tune</span>
+                                <span>{design.tuning && design.tuning !== 'Standard' ? design.tuning : 'Standard'}</span>
+                            </div>
+                        </div>
+                    )}
+                </div>
                 {/* Horizontal Signal Line (Desktop) */}
                 <div className="hidden lg:block absolute top-1/2 left-0 w-full h-1 bg-slate-300 dark:bg-border-dark -translate-y-1/2 z-0"></div>
                 {/* Vertical Signal Line (Mobile) */}
@@ -28,6 +47,7 @@ const DesignVisualizer = ({ design, onGenerate }) => {
 
                 {/* Blocks Container */}
                 <div className="relative z-10 flex flex-col lg:flex-row flex-wrap items-center justify-center gap-8 lg:gap-4">
+                    {/* Variax Block (if exists) */}
                     {design.chain.map((comp, idx) => {
                         const type = comp.type?.toLowerCase() || 'default';
                         const cfg = typeConfig[type] || typeConfig.default;

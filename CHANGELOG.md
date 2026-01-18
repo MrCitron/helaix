@@ -5,6 +5,15 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.6.0] - 2026-01-18
+
+### Added
+- **Deep Variax Integration**: Full support for Variax modeling in preset generation and visualization.
+- **Hardware Selection**: Added settings to specify Variax hardware type (Standard, JTV, Shuriken) for accurate model mapping.
+- **Real Guitar Names**: The AI now understands and maps iconic guitar names (e.g., "Les Paul", "Stratocaster") to the correct Variax models.
+- **Context-Aware Tuning**: Automated tuning suggestions (e.g., "Drop D" for relevant styles) based on Variax capabilities.
+- **Real Chain Visualizer**: New "Guitar" header display in the chain visualizer showing the simulated instrument and tuning.
+
 ## [0.5.0] - 2026-01-17
 
 ### Added

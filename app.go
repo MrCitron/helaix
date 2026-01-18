@@ -60,7 +60,7 @@ func (a *App) GxChatSoundEngineer(history []gemini.ChatMessage) (*gemini.RigDesc
 	}
 	defer client.Close()
 
-	return client.ChatSoundEngineer(a.ctx, history)
+	return client.ChatSoundEngineer(a.ctx, history, cfg.VariaxHardwareModel)
 }
 
 // GxChatPresetEngineer calls the Preset Engineer Agent with history and baseline rig
@@ -76,7 +76,7 @@ func (a *App) GxChatPresetEngineer(rig gemini.RigDescription, presetName string,
 	}
 	defer client.Close()
 
-	return client.ChatPresetEngineer(a.ctx, &rig, presetName, history, cfg.HardwareTarget, cfg.DefaultExpPedal)
+	return client.ChatPresetEngineer(a.ctx, &rig, presetName, history, cfg.HardwareTarget, cfg.DefaultExpPedal, cfg.VariaxEnabled, cfg.VariaxHardwareModel)
 }
 
 // GxSaveFile saves the preset to the disk and returns the full path

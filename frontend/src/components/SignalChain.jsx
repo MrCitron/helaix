@@ -4,12 +4,32 @@ import { getIconForBlock, getBlockColor } from './IconLibrary';
 const BlockParameters = ({ block, blockKey, color, onClose }) => {
     // Filter out metadata and system properties
     const getVisibleParams = (block) => {
-        return Object.entries(block).filter(([key]) => {
+        const visible = Object.entries(block).filter(([key]) => {
             return !key.startsWith('@') &&
                 key !== 'model' &&
                 key !== 'type' &&
                 typeof block[key] !== 'object';
         });
+
+        // Special handling for Variax Custom Tuning
+        if ((block["@model"] === 'Variax' || block["@type"] === 'variax') && block["@variax_customtuning"] === true) {
+            const strings = [
+                { key: "@variax_str1tuning", label: "Str 1 (High E)" },
+                { key: "@variax_str2tuning", label: "Str 2 (B)" },
+                { key: "@variax_str3tuning", label: "Str 3 (G)" },
+                { key: "@variax_str4tuning", label: "Str 4 (D)" },
+                { key: "@variax_str5tuning", label: "Str 5 (A)" },
+                { key: "@variax_str6tuning", label: "Str 6 (Low E)" },
+            ];
+
+            strings.forEach(str => {
+                if (block[str.key] !== undefined) {
+                    visible.push([str.label, block[str.key]]);
+                }
+            });
+        }
+
+        return visible;
     };
 
     const params = getVisibleParams(block);

@@ -10,6 +10,12 @@ Talk to the **helAIx assistant** like a pro sound engineer. Describe the tone yo
 ![Signal Chain Screenshot](docs/screenshot2.png)
 *Detailed signal chain visualization*
 
+## ✨ Features
+
+- **AI-Powered Sound Design**: Transforms natural language descriptions into complex Helix presets.
+- **Hardware-Aware DSP**: Manages DSP limits and path routing for specific hardware models (Floor, LT, Stomp).
+- **Deep Variax Integration**: Automatic model selection, hardware-aware mapping (JTV/Standard), and context-aware tuning.
+
 ## ⚙️ Setup
 
 Getting started with HelAIx is easy:
@@ -39,6 +45,7 @@ This application has currently only been tested on a **Helix Floor** with **Firm
 - **Frontend**: React + Tailwind CSS
 - **Framework**: [Wails](https://wails.io/) (Cross-platform Desktop Apps)
 - **AI Integration**: Google Gemini API
+
 
 ## 👷‍♂️Getting Started (Build from source)
 
@@ -81,11 +88,11 @@ The executable will be generated in the `build/bin` directory.
 ## 🚀 Future Features
 
 Here are some planned enhancements for future versions of HelAIx:
+- **Use and setup Snapshots**: use snapshots to create variations of the preset, like main, solo, rhythm, etc.
 - **Enhance generated preset quality**: limit the amount of manual refinement required (levels, EQ balancing, etc.).
 - **Add more LLM providers**: Currently, only Google Gemini is supported. Other providers like OpenAI, Anthropic, etc. could be added.
 - **Custom LLM Prompt Tuning**: Allow users to fine-tune the AI prompts directly in the Settings to better match their personal tone preferences and workflow.
 - **Direct Preset Deployment**: Explore ways to push presets directly to the Helix hardware, potentially integrating with HX Edit or using direct USB communication.
-- **Variax Input Parameters**: Add support for managing Variax guitar input parameters (tuning, pickup simulation, etc.) for users with compatible instruments like the JTV-89.
 
 Contributions and suggestions are always welcome!
 

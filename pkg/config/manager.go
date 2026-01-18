@@ -8,14 +8,16 @@ import (
 )
 
 type AppConfig struct {
-	ApiKey          string `json:"api_key"`
-	Provider        string `json:"provider"` // "Google" = Gemini API (ai.google.dev), "Vertex" = Vertex AI
-	Model           string `json:"model"`    // e.g., "gemini-2.5-flash", "gemini-3-flash-preview"
-	OutputPath      string `json:"output_path"`
-	HardwareTarget  string `json:"hardware_target"`
-	DeleteNoConfirm bool   `json:"delete_no_confirm"`
-	IncrementalSave bool   `json:"incremental_save"`
-	DefaultExpPedal int    `json:"default_exp_pedal"` // 0 = None, 1 = Exp 1, 2 = Exp 2, 3 = Exp 3
+	ApiKey              string `json:"api_key"`
+	Provider            string `json:"provider"` // "Google" = Gemini API (ai.google.dev), "Vertex" = Vertex AI
+	Model               string `json:"model"`    // e.g., "gemini-2.5-flash", "gemini-3-flash-preview"
+	OutputPath          string `json:"output_path"`
+	HardwareTarget      string `json:"hardware_target"`
+	DeleteNoConfirm     bool   `json:"delete_no_confirm"`
+	IncrementalSave     bool   `json:"incremental_save"`
+	DefaultExpPedal     int    `json:"default_exp_pedal"`     // 0 = None, 1 = Exp 1, 2 = Exp 2, 3 = Exp 3
+	VariaxEnabled       bool   `json:"variax_enabled"`        // Whether to control Variax
+	VariaxHardwareModel string `json:"variax_hardware_model"` // JTV, Standard, Shuriken
 }
 
 type Manager struct {
@@ -38,11 +40,13 @@ func NewManager() *Manager {
 	m := &Manager{
 		configPath: configPath,
 		config: AppConfig{
-			Provider:        "Google",           // Gemini API (not Vertex AI)
-			Model:           "gemini-2.5-flash", // Updated to current stable model
-			OutputPath:      defaultOutPath,
-			HardwareTarget:  "Helix Floor",
-			DefaultExpPedal: 1, // Default to Exp 1
+			Provider:            "Google",           // Gemini API (not Vertex AI)
+			Model:               "gemini-2.5-flash", // Updated to current stable model
+			OutputPath:          defaultOutPath,
+			HardwareTarget:      "Helix Floor",
+			DefaultExpPedal:     1, // Default to Exp 1
+			VariaxEnabled:       false,
+			VariaxHardwareModel: "Standard",
 		},
 	}
 	m.Load()

@@ -16,6 +16,26 @@ function PresetVisualizer({ preset, compact = false }) {
             return posA - posB || a[0].localeCompare(b[0]);
         });
 
+    // 2. Prepend Variax if active and not default/off (Model 0)
+    if (preset.data.tone.variax && preset.data.tone.variax["@variax_model"] !== 0) {
+        const modelNames = {
+            10: "T-Model", 15: "Spank", 20: "Lester", 25: "Special", 30: "R-Billy",
+            35: "Chime", 40: "Semi", 45: "Jazzbox", 50: "Acoustic", 55: "Reso", 60: "Shuriken"
+        };
+        const modelId = preset.data.tone.variax["@variax_model"];
+        const variaxBlock = [
+            "variax",
+            {
+                ...preset.data.tone.variax,
+                "@model": modelNames[modelId] || "Variax",
+                "@enabled": true,
+                "@type": "variax",
+                "@position": -1
+            }
+        ];
+        dspBlocks.unshift(variaxBlock);
+    }
+
     return (
         <div className={`space-y-4 w-full animate-in fade-in duration-300 ${compact ? '' : 'p-4'}`}>
             {!compact && (

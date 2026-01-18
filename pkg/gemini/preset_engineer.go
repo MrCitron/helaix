@@ -11,7 +11,7 @@ import (
 )
 
 // ChatPresetEngineer takes the abstract rig and maps it to specific Helix Blocks, or refines an existing implementation
-func (c *Client) ChatPresetEngineer(ctx context.Context, rig *RigDescription, presetName string, history []ChatMessage, hardware string, defaultExp int) (*helix.Preset, error) {
+func (c *Client) ChatPresetEngineer(ctx context.Context, rig *RigDescription, presetName string, history []ChatMessage, hardware string, defaultExp int, variaxEnabled bool, hardwareModel string) (*helix.Preset, error) {
 	// 1. Prepare Catalog Context
 	helix.DB.EnsureLoaded()
 
@@ -287,5 +287,169 @@ func (c *Client) ChatPresetEngineer(ctx context.Context, rig *RigDescription, pr
 		}
 	}
 
+	// 5. Apply Variax Settings
+	if variaxEnabled {
+		applyVariax(preset, rig, hardwareModel)
+	} else {
+		// If Variax is disabled, reset to safe defaults instead of removing
+		if data, ok := (*preset)["data"].(map[string]interface{}); ok {
+			if tone, ok := data["tone"].(map[string]interface{}); ok {
+				tone["variax"] = map[string]interface{}{
+					"@model":               "@variax",
+					"@variax_customtuning": false,
+					"@variax_lockctrls":    0,
+					"@variax_magmode":      true,
+					"@variax_model":        0,
+					"@variax_str1level":    1.0,
+					"@variax_str1tuning":   0,
+					"@variax_str2level":    1.0,
+					"@variax_str2tuning":   0,
+					"@variax_str3level":    1.0,
+					"@variax_str3tuning":   0,
+					"@variax_str4level":    1.0,
+					"@variax_str4tuning":   0,
+					"@variax_str5level":    1.0,
+					"@variax_str5tuning":   0,
+					"@variax_str6level":    1.0,
+					"@variax_str6tuning":   0,
+					"@variax_toneknob":     -0.10,
+					"@variax_volumeknob":   -0.10,
+				}
+			}
+		}
+	}
+
+	// 6. Apply Global Defaults (Cursor)
+	if data, ok := (*preset)["data"].(map[string]interface{}); ok {
+		if tone, ok := data["tone"].(map[string]interface{}); ok {
+			if global, ok := tone["global"].(map[string]interface{}); ok {
+				global["@cursor_dsp"] = 0
+				global["@cursor_group"] = "inputA"
+			}
+		}
+	}
+
 	return preset, nil
+}
+
+func applyVariax(preset *helix.Preset, rig *RigDescription, hardwareModel string) {
+	data, ok := (*preset)["data"].(map[string]interface{})
+	if !ok {
+		return
+	}
+	tone, ok := data["tone"].(map[string]interface{})
+	if !ok {
+		return
+	}
+	v, ok := tone["variax"].(map[string]interface{})
+	if !ok {
+		return
+	}
+
+	// 1. Model Selection (Real Name -> Variax Name)
+	// User hardware maps T-Model to 10 (Custom banks at 0-9?), so we apply a +10 offset to standard Helix IDs.
+	modelID := -1
+	m := strings.ToLower(rig.GuitarModel)
+
+	switch {
+	// Telecaster / T-Model (Standard ID 0 -> Hardware ID 10)
+	case strings.Contains(m, "tele") || strings.Contains(m, "t-model"):
+		modelID = 10
+	// Stratocaster / Spank (Standard ID 5 -> Hardware ID 15)
+	case strings.Contains(m, "strat") || strings.Contains(m, "spank"):
+		modelID = 15
+	// Les Paul / Lester (Standard ID 10 -> Hardware ID 20)
+	case strings.Contains(m, "paul") || strings.Contains(m, "lester") || strings.Contains(m, "lp") || strings.Contains(m, "gibson") || strings.Contains(m, "singlecut") || strings.Contains(m, "humbucker") || strings.Contains(m, "arm the homeless"):
+		modelID = 20
+	// Special / Junior / P90 (Standard ID 15 -> Hardware ID 25)
+	case strings.Contains(m, "special") || strings.Contains(m, "junior") || strings.Contains(m, "p90"):
+		modelID = 25
+	// R-Billy / Gretsch (Standard ID 20 -> Hardware ID 30)
+	case strings.Contains(m, "gretsch") || strings.Contains(m, "billy") || strings.Contains(m, "silver jet") || strings.Contains(m, "duo jet"):
+		modelID = 30
+	// Chime / Rickenbacker (Standard ID 25 -> Hardware ID 35)
+	case strings.Contains(m, "rick") || strings.Contains(m, "chime"):
+		modelID = 35
+	// Semi / ES-335 (Standard ID 30 -> Hardware ID 40)
+	case strings.Contains(m, "semi") || strings.Contains(m, "335") || strings.Contains(m, "es-335"):
+		modelID = 40
+	// Jazz / L5 (Standard ID 35 -> Hardware ID 45)
+	case strings.Contains(m, "jazz") || strings.Contains(m, "175") || strings.Contains(m, "super 400") || strings.Contains(m, "l5"):
+		modelID = 45
+	// Acoustic (Standard ID 40 -> Hardware ID 50)
+	case strings.Contains(m, "acoustic") || strings.Contains(m, "j-200") || strings.Contains(m, "d-28") || strings.Contains(m, "martin") || strings.Contains(m, "taylor"):
+		modelID = 50
+	// Reso / Dobro (Standard ID 45 -> Hardware ID 55)
+	case strings.Contains(m, "reso") || strings.Contains(m, "dobro") || strings.Contains(m, "banjo") || strings.Contains(m, "sitar"):
+		modelID = 55
+	// Shuriken (Standard ID 50 -> Hardware ID 60? Or keep distinct?)
+	// Assuming +10 offset applies linearly relative to standard banks.
+	case strings.Contains(m, "shuriken") && strings.ToLower(hardwareModel) == "shuriken":
+		modelID = 60
+	}
+
+	// If a model was found, apply it
+	if modelID >= 0 {
+		v["@variax_model"] = modelID
+		v["@variax_magmode"] = true
+		// Store the technical name in metadata for the visualizer to use later
+		// (We'll use a custom property in the preset name or similar if Helix supports it,
+		// or just rely on the mapping for the frontend)
+	} else {
+		// If no specific model suggested, don't force Variax settings
+		v["@variax_magmode"] = true
+	}
+
+	// 2. Tuning Logic
+	t := strings.ToLower(rig.Tuning)
+	if t != "" && t != "standard" {
+		offsets := [6]int{0, 0, 0, 0, 0, 0}
+		isTuningMapped := false
+
+		switch {
+		case strings.Contains(t, "drop d"):
+			offsets = [6]int{-2, 0, 0, 0, 0, 0} // Low E to D
+			isTuningMapped = true
+		case strings.Contains(t, "eb") || strings.Contains(t, "half step down"):
+			offsets = [6]int{-1, -1, -1, -1, -1, -1}
+			isTuningMapped = true
+		case strings.Contains(t, "d standard") || strings.Contains(t, "whole step down"):
+			offsets = [6]int{-2, -2, -2, -2, -2, -2}
+			isTuningMapped = true
+		case strings.Contains(t, "drop c") && (strings.ToLower(hardwareModel) == "shuriken" || strings.ToLower(hardwareModel) == "jtv"):
+			offsets = [6]int{-4, -2, -2, -2, -2, -2}
+			isTuningMapped = true
+		case strings.Contains(t, "drop b"):
+			// Slipknot-style Drop B: B-F#-B-E-G#-C#
+			offsets = [6]int{-5, -3, -3, -3, -3, -3}
+			isTuningMapped = true
+		case strings.Contains(t, "drop a"):
+			offsets = [6]int{-7, -5, -5, -5, -5, -5}
+			isTuningMapped = true
+		case strings.Contains(t, "baritone"):
+			offsets = [6]int{-5, -5, -5, -5, -5, -5} // B Standard
+			isTuningMapped = true
+		case strings.Contains(t, "open g"):
+			offsets = [6]int{-2, -2, 0, 0, 0, -2} // D-G-D-G-B-D
+			isTuningMapped = true
+		case strings.Contains(t, "open d"):
+			offsets = [6]int{-2, 0, 0, -1, -2, -2} // D-A-D-F#-A-D
+			isTuningMapped = true
+		case strings.Contains(t, "dadgad"):
+			offsets = [6]int{-2, 0, 0, 0, 0, -2}
+			isTuningMapped = true
+		}
+
+		if isTuningMapped {
+			v["@variax_customtuning"] = true
+			v["@variax_str1tuning"] = offsets[5]
+			v["@variax_str2tuning"] = offsets[4]
+			v["@variax_str3tuning"] = offsets[3]
+			v["@variax_str4tuning"] = offsets[2]
+			v["@variax_str5tuning"] = offsets[1]
+			v["@variax_str6tuning"] = offsets[0]
+		}
+	} else {
+		v["@variax_customtuning"] = false
+	}
 }
