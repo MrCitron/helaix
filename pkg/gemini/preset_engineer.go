@@ -231,14 +231,7 @@ func (c *Client) ChatPresetEngineer(ctx context.Context, rig *RigDescription, pr
 		}
 
 		for k, v := range b.Params {
-			// Reverb Decay Sanitization (Reverbs and Delays with Reverb tails)
-			isReverb := strings.HasPrefix(internalID, "HD2_Reverb") || strings.HasPrefix(internalID, "VIC_Reverb")
-			isDelay := strings.HasPrefix(internalID, "HD2_Delay") || strings.HasPrefix(internalID, "VIC_Delay")
-			if (isReverb && (k == "Decay" || k == "VerbDecay")) || (isDelay && k == "VerbDecay") {
-				if val, ok := v.(float64); ok && val >= 0.7 {
-					v = 0.7
-				}
-			}
+			v = sanitizeParam(internalID, k, v)
 			finalParams[k] = v
 		}
 
@@ -452,4 +445,23 @@ func applyVariax(preset *helix.Preset, rig *RigDescription, hardwareModel string
 	} else {
 		v["@variax_customtuning"] = false
 	}
+}
+
+func sanitizeParam(internalID, k string, v interface{}) interface{} {
+	// Reverb Decay Sanitization (Reverbs and Delays with Reverb tails)
+	isReverb := strings.HasPrefix(internalID, "HD2_Reverb") || strings.HasPrefix(internalID, "VIC_Reverb")
+	isDelay := strings.HasPrefix(internalID, "HD2_Delay") || strings.HasPrefix(internalID, "VIC_Delay")
+	if (isReverb && (k == "Decay" || k == "VerbDecay")) || (isDelay && k == "VerbDecay") {
+		if val, ok := v.(float64); ok && val >= 0.7 {
+			return 0.7
+		}
+	}
+
+	// Delay Feedback Sanitization
+	if isDelay && (k == "Feedback" || k == "Fdbk" || k == "Bk") {
+		if val, ok := v.(float64); ok && val >= 0.75 {
+			return 0.75
+		}
+	}
+	return v
 }
