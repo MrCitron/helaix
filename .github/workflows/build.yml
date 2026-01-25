@@ -4,6 +4,8 @@ on:
   push:
     branches-ignore:
       - main
+    paths:
+      - 'app/**'
     tags:
       - 'v*'
   workflow_dispatch:

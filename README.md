@@ -13,8 +13,10 @@ Talk to the **helAIx assistant** like a pro sound engineer. Describe the tone yo
 ## ✨ Features
 
 - **AI-Powered Sound Design**: Transforms natural language descriptions into complex Helix presets.
+- **Multi-Snapshot Support**: Automatically generates song-based snapshots (Intro, Verse, Chorus, Solo) with independent bypass states and parameter shifts.
 - **Hardware-Aware DSP**: Manages DSP limits and path routing for specific hardware models (Floor, LT, Stomp).
-- **Deep Variax Integration**: Automatic model selection, hardware-aware mapping (JTV/Standard), and context-aware tuning.
+- **Line6 Variax Support**: Automatic model selection and context-aware tuning.
+
 
 ## ⚙️ Setup
 
@@ -90,7 +92,6 @@ The executable will be generated in the `build/bin` directory.
 ## 🚀 Future Features
 
 Here are some planned enhancements for future versions of HelAIx:
-- **Use and setup Snapshots**: use snapshots to create variations of the preset, like main, solo, rhythm, etc.
 - **Enhance generated preset quality**: limit the amount of manual refinement required (levels, EQ balancing, etc.).
 - **Add more LLM providers**: Currently, only Google Gemini is supported. Other providers like OpenAI, Anthropic, etc. could be added.
 - **Custom LLM Prompt Tuning**: Allow users to fine-tune the AI prompts directly in the Settings to better match their personal tone preferences and workflow.

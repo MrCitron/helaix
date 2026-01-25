@@ -93,8 +93,8 @@ export const getIconForBlock = (block) => {
     const model = block["@model"] || "";
     const type = block["@type"];
 
-    if (type === 1 || type === 2 || type === 3) return HelixIcons.Amp;
-    if (type === 4) return HelixIcons.Cab;
+    if (type === 1 || type === 3) return HelixIcons.Amp;
+    if (type === 2 || type === 4) return HelixIcons.Cab;
     if (type === "variax") return HelixIcons.Guitar;
 
     if (model.includes("Dist") || model.includes("Kinky") || model.includes("Scream") || model.includes("Minotaur")) return HelixIcons.Distortion;
@@ -115,8 +115,8 @@ export const getBlockColor = (block) => {
     const type = block["@type"];
     const model = block["@model"] || "";
 
-    if (type === 1 || type === 2 || type === 3) return "#FF5252"; // Amp (Red)
-    if (type === 4) return "#D32F2F"; // Cab (Dark Red)
+    if (type === 1 || type === 3) return "#FF5252"; // Amp (Red)
+    if (type === 2 || type === 4) return "#D32F2F"; // Cab (Dark Red)
     if (type === "variax") return '#9C27B0'; // Variax
 
     if (model.includes("Dist") || model.includes("Kinky") || model.includes("Scream")) return "#FF5722"; // Distortion (Orange)

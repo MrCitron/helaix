@@ -1,0 +1,542 @@
+{
+    "variax_configurations": {
+        "jtv": {
+            "name": "James Tyler Variax",
+            "variant_logic": "inverted",
+            "banks": [
+                {
+                    "name": "Custom 1",
+                    "base_id": 1,
+                    "description": "User custom presets 1-5"
+                },
+                {
+                    "name": "T-Model",
+                    "base_id": 6,
+                    "description": "1960 Fender Telecaster Custom",
+                    "models": [
+                        "Neck",
+                        "Widerange Neck",
+                        "Bridge + Neck",
+                        "Widerange Bridge",
+                        "Bridge"
+                    ]
+                },
+                {
+                    "name": "Spank",
+                    "base_id": 11,
+                    "description": "1959 Fender Stratocaster",
+                    "models": [
+                        "Neck",
+                        "Neck+Middle",
+                        "Middle",
+                        "Bridge+Middle",
+                        "Bridge"
+                    ]
+                },
+                {
+                    "name": "Lester",
+                    "base_id": 16,
+                    "description": "1958/1959 Gibson Les Paul",
+                    "models": [
+                        "Neck",
+                        "P90 Neck",
+                        "Bridge + Neck",
+                        "P90 Bridge",
+                        "Bridge"
+                    ]
+                },
+                {
+                    "name": "Special",
+                    "base_id": 21,
+                    "description": "LP Special / Firebird V",
+                    "models": [
+                        "Special Neck",
+                        "Firebird Neck",
+                        "Special Bridge+Neck",
+                        "Firebird Bridge",
+                        "Special Bridge"
+                    ]
+                },
+                {
+                    "name": "R-Billy",
+                    "base_id": 26,
+                    "description": "Gretsch 6120 / Duo Jet",
+                    "models": [
+                        "6120 Neck",
+                        "Duo Jet Neck",
+                        "6120 Bridge+Neck",
+                        "Duo Jet Bridge",
+                        "6120 Bridge"
+                    ]
+                },
+                {
+                    "name": "Chime",
+                    "base_id": 31,
+                    "description": "Rickenbacker 370 / 370-12",
+                    "models": [
+                        "370 Neck",
+                        "370-12 Neck",
+                        "370 Bridge+Neck",
+                        "370-12 Bridge",
+                        "370 Bridge"
+                    ]
+                },
+                {
+                    "name": "Semi",
+                    "base_id": 36,
+                    "description": "Gibson ES-335 / Casino",
+                    "models": [
+                        "335 Neck",
+                        "Casino Neck",
+                        "335 Bridge+Neck",
+                        "Casino Bridge",
+                        "335 Bridge"
+                    ]
+                },
+                {
+                    "name": "Jazzbox",
+                    "base_id": 41,
+                    "description": "Gibson ES-175 / Super 400",
+                    "models": [
+                        "175 Neck",
+                        "Super 400 Neck",
+                        "175 Bridge+Neck",
+                        "Super 400 Bridge",
+                        "175 Bridge"
+                    ]
+                },
+                {
+                    "name": "Acoustic",
+                    "base_id": 46,
+                    "description": "Martin D-28 / Guild F212 / J-200 / O-18",
+                    "models": [
+                        "J-200",
+                        "Guild F212",
+                        "Martin O-18",
+                        "Martin D12-28",
+                        "Martin D-28"
+                    ]
+                },
+                {
+                    "name": "Reso",
+                    "base_id": 51,
+                    "description": "Dobro / Sitar / Banjo / Tricone / Shorthorn",
+                    "models": [
+                        "Tricone",
+                        "Banjo",
+                        "Shorthorn",
+                        "Sitar",
+                        "Dobro 32"
+                    ]
+                },
+                {
+                    "name": "Custom 2",
+                    "base_id": 56,
+                    "description": "User custom presets 6-10"
+                }
+            ],
+            "aliases": {
+                "tele": "T-Model",
+                "jaguar": "T-Model",
+                "fender tele": "T-Model",
+                "strat": "Spank",
+                "fender strat": "Spank",
+                "les paul": "Lester",
+                "goldtop": "Lester",
+                "lp": "Lester",
+                "p90": "Special",
+                "firebird": "Special",
+                "gretsch": "R-Billy",
+                "duo jet": "R-Billy",
+                "6120": "R-Billy",
+                "rick": "Chime",
+                "rickenbacker": "Chime",
+                "370": "Chime",
+                "335": "Semi",
+                "casino": "Semi",
+                "epiphone": "Semi",
+                "archtop": "Jazzbox",
+                "super 400": "Jazzbox",
+                "175": "Jazzbox",
+                "martin": "Acoustic",
+                "j-200": "Acoustic",
+                "parlor": "Acoustic",
+                "sitar": "Reso",
+                "banjo": "Reso",
+                "dobro": "Reso",
+                "tricone": "Reso",
+                "danelectro": "Reso"
+            },
+            "tunings": {
+                "Standard": {
+                    "offsets": [
+                        0,
+                        0,
+                        0,
+                        0,
+                        0,
+                        0
+                    ],
+                    "aliases": [
+                        "E Standard",
+                        "EADGBE"
+                    ]
+                },
+                "Drop D": {
+                    "offsets": [
+                        -2,
+                        0,
+                        0,
+                        0,
+                        0,
+                        0
+                    ],
+                    "aliases": [
+                        "Dropped D"
+                    ]
+                },
+                "1/2 Down": {
+                    "offsets": [
+                        -1,
+                        -1,
+                        -1,
+                        -1,
+                        -1,
+                        -1
+                    ],
+                    "aliases": [
+                        "Eb",
+                        "Half Step Down",
+                        "Eb Standard"
+                    ]
+                },
+                "Drop Db": {
+                    "offsets": [
+                        -3,
+                        -1,
+                        -1,
+                        -1,
+                        -1,
+                        -1
+                    ],
+                    "aliases": [
+                        "Drop C#",
+                        "Half Step Down Drop"
+                    ]
+                },
+                "1 Down": {
+                    "offsets": [
+                        -2,
+                        -2,
+                        -2,
+                        -2,
+                        -2,
+                        -2
+                    ],
+                    "aliases": [
+                        "D Standard",
+                        "Whole Step Down"
+                    ]
+                },
+                "DADGAD": {
+                    "offsets": [
+                        -2,
+                        0,
+                        0,
+                        0,
+                        0,
+                        -2
+                    ],
+                    "aliases": [
+                        "D Modal"
+                    ]
+                },
+                "Open D": {
+                    "offsets": [
+                        -2,
+                        0,
+                        0,
+                        -1,
+                        -2,
+                        -2
+                    ],
+                    "aliases": [
+                        "Vestapol"
+                    ]
+                },
+                "Blues G": {
+                    "offsets": [
+                        -2,
+                        -2,
+                        0,
+                        0,
+                        0,
+                        -2
+                    ],
+                    "aliases": [
+                        "Open G"
+                    ]
+                },
+                "Reso G": {
+                    "offsets": [
+                        0,
+                        0,
+                        0,
+                        0,
+                        0,
+                        0
+                    ],
+                    "notes": "G B D G B D",
+                    "offsets_abs": [
+                        -12,
+                        -8,
+                        -5,
+                        0,
+                        4,
+                        7
+                    ]
+                },
+                "Open A": {
+                    "offsets": [
+                        0,
+                        0,
+                        2,
+                        2,
+                        2,
+                        0
+                    ],
+                    "aliases": [
+                        "A Standard",
+                        "E A C# E A E"
+                    ]
+                },
+                "Baritone": {
+                    "offsets": [
+                        -5,
+                        -5,
+                        -5,
+                        -5,
+                        -5,
+                        -5
+                    ],
+                    "aliases": [
+                        "B Standard"
+                    ]
+                }
+            }
+        },
+        "standard": {
+            "inherits": "jtv"
+        },
+        "shuriken": {
+            "name": "Variax Shuriken",
+            "variant_logic": "inverted",
+            "banks": [
+                {
+                    "name": "Shuriken",
+                    "base_id": 1,
+                    "description": "Shuriken Custom Models",
+                    "models": [
+                        "Shuriken",
+                        "Shuriken Spank",
+                        "Drop A",
+                        "Tone Down Acoustic",
+                        "Drop D Octave"
+                    ]
+                },
+                {
+                    "name": "T-Model",
+                    "base_id": 6,
+                    "description": "1960 Fender Telecaster Custom"
+                },
+                {
+                    "name": "Spank",
+                    "base_id": 11,
+                    "description": "1959 Fender Stratocaster"
+                },
+                {
+                    "name": "Lester",
+                    "base_id": 16,
+                    "description": "1958/1959 Gibson Les Paul"
+                },
+                {
+                    "name": "Acoustic",
+                    "base_id": 21,
+                    "description": "Variax Acoustic Models"
+                },
+                {
+                    "name": "Jazz",
+                    "base_id": 26,
+                    "description": "Variax Jazz Models"
+                },
+                {
+                    "name": "World",
+                    "base_id": 31,
+                    "description": "Reso/Sitar/Exotic"
+                },
+                {
+                    "name": "Twang",
+                    "base_id": 36,
+                    "description": "Gretsch/Rickenbacker Mix"
+                },
+                {
+                    "name": "User I",
+                    "base_id": 41,
+                    "description": "Shuriken User Bank 1"
+                },
+                {
+                    "name": "User II",
+                    "base_id": 46,
+                    "description": "Shuriken User Bank 2"
+                },
+                {
+                    "name": "User III",
+                    "base_id": 51,
+                    "description": "Shuriken User Bank 3"
+                },
+                {
+                    "name": "User IV",
+                    "base_id": 56,
+                    "description": "Shuriken User Bank 4"
+                }
+            ],
+            "aliases": {
+                "shuriken": "Shuriken",
+                "tele": "T-Model",
+                "jaguar": "T-Model",
+                "strat": "Spank",
+                "fender": "Spank",
+                "lp": "Lester",
+                "les paul": "Lester",
+                "acoustic": "Acoustic",
+                "martin": "Acoustic",
+                "jazz": "Jazz",
+                "archtop": "Jazz",
+                "world": "World",
+                "reso": "World",
+                "sitar": "World",
+                "twang": "Twang",
+                "rick": "Twang",
+                "gretsch": "Twang"
+            },
+            "tunings": {
+                "Standard": {
+                    "offsets": [
+                        0,
+                        0,
+                        0,
+                        0,
+                        0,
+                        0
+                    ]
+                },
+                "User I": {
+                    "offsets": [
+                        -2,
+                        0,
+                        0,
+                        0,
+                        0,
+                        -2
+                    ],
+                    "description": "DADGAD Variant"
+                },
+                "User II": {
+                    "offsets": [
+                        0,
+                        2,
+                        2,
+                        1,
+                        0,
+                        0
+                    ],
+                    "notes": "E B E B B E"
+                },
+                "User III": {
+                    "offsets": [
+                        0,
+                        0,
+                        2,
+                        2,
+                        2,
+                        0
+                    ],
+                    "notes": "E A A A A A"
+                },
+                "User IV": {
+                    "offsets": [
+                        -5,
+                        0,
+                        0,
+                        0,
+                        0,
+                        0
+                    ],
+                    "notes": "B E E E E E"
+                },
+                "1 Down": {
+                    "offsets": [
+                        -2,
+                        -2,
+                        -2,
+                        -2,
+                        -2,
+                        -2
+                    ]
+                },
+                "2 Down": {
+                    "offsets": [
+                        -4,
+                        -2,
+                        -2,
+                        -2,
+                        -2,
+                        -2
+                    ],
+                    "notes": "C F Bb Eb G C"
+                },
+                "Drop C": {
+                    "offsets": [
+                        -4,
+                        -2,
+                        -2,
+                        -2,
+                        -2,
+                        -2
+                    ]
+                },
+                "Baritone": {
+                    "offsets": [
+                        -5,
+                        -5,
+                        -5,
+                        -5,
+                        -5,
+                        -5
+                    ]
+                },
+                "Drop A": {
+                    "offsets": [
+                        -7,
+                        -5,
+                        -5,
+                        -5,
+                        -5,
+                        -5
+                    ]
+                },
+                "Octave": {
+                    "offsets": [
+                        0,
+                        0,
+                        0,
+                        0,
+                        0,
+                        0
+                    ],
+                    "description": "1 Octave Down"
+                }
+            }
+        }
+    }
+}
