@@ -1,3 +1,4 @@
+import React, { useState } from 'react';
 import { HelixIcons } from './IconLibrary';
 import { useI18n } from '../i18n';
 
@@ -13,65 +14,116 @@ const typeConfig = {
     default: { Icon: HelixIcons.FX, color: 'bg-[#607D8B]', hoverColor: 'hover:bg-[#78909C]', borderColor: 'border-[#455A64]', text: 'text-[#B0BEC5]', label: 'FX' }
 };
 
-const DesignVisualizer = ({ design, onGenerate }) => {
+const DesignVisualizer = ({ design, onGenerate, activeSnapIdx: propsActiveSnapIdx, hideSelector = false }) => {
     const { t } = useI18n();
+    const [localActiveSnapIdx, setLocalActiveSnapIdx] = useState(0);
+
+    const activeSnapIdx = propsActiveSnapIdx !== undefined ? propsActiveSnapIdx : localActiveSnapIdx;
+    const setActiveSnapIdx = propsActiveSnapIdx !== undefined ? () => { } : setLocalActiveSnapIdx;
 
     if (!design || !design.chain) return null;
 
+    const snapshots = design.snapshots || [];
+    const activeSnapshot = snapshots.length > 0 ? snapshots[activeSnapIdx] : null;
+
     return (
         <div className="flex flex-col gap-6 w-full">
-            <div className="relative w-full rounded-xl border border-slate-300 dark:border-[#3f5256] bg-white dark:bg-background-dark p-4 py-8 overflow-hidden">
-                <div className="flex justify-between items-center px-2 mb-6 opacity-80">
-                    <h3 className="text-slate-500 dark:text-text-muted uppercase text-[10px] font-bold tracking-[0.2em]">{t('chat.realChain')}</h3>
-                    {(design.guitar_model || design.tuning) && (
-                        <div className="flex items-center gap-3 text-primary text-[11px] font-bold">
-                            {/* Guitar Model Name */}
-                            {design.guitar_model && (
-                                <div className="flex items-center gap-1.5 bg-primary/10 px-2 py-1 rounded">
-                                    <span>{design.guitar_model}</span>
-                                </div>
-                            )}
-
-                            {/* Tuning Info (Default to Standard if empty) */}
-                            <div className="flex items-center gap-1">
-                                <span className="material-symbols-outlined text-sm">tune</span>
-                                <span>{design.tuning && design.tuning !== 'Standard' ? design.tuning : 'Standard'}</span>
-                            </div>
-                        </div>
-                    )}
+            {/* Snapshot Selector */}
+            {snapshots.length > 0 && !hideSelector && (
+                <div className="flex flex-wrap gap-2 px-1">
+                    {snapshots.map((snap, idx) => (
+                        <button
+                            key={idx}
+                            onClick={() => setActiveSnapIdx(idx)}
+                            className={`px-3 py-1.5 rounded-lg text-[11px] font-bold transition-all border
+                                ${activeSnapIdx === idx
+                                    ? 'bg-primary text-slate-900 border-primary shadow-[0_0_10px_rgba(19,200,236,0.3)]'
+                                    : 'bg-slate-100 dark:bg-surface-dark text-slate-500 dark:text-text-muted border-slate-300 dark:border-border-dark hover:border-primary/40'
+                                }`}
+                        >
+                            {snap.name.toUpperCase()}
+                        </button>
+                    ))}
                 </div>
-                {/* Horizontal Signal Line (Desktop) */}
-                <div className="hidden lg:block absolute top-1/2 left-0 w-full h-1 bg-slate-300 dark:bg-border-dark -translate-y-1/2 z-0"></div>
-                {/* Vertical Signal Line (Mobile) */}
-                <div className="block lg:hidden absolute left-1/2 top-0 w-1 h-full bg-slate-300 dark:bg-border-dark -translate-x-1/2 z-0"></div>
+            )}
 
-                {/* Blocks Container */}
-                <div className="relative z-10 flex flex-col lg:flex-row flex-wrap items-center justify-center gap-8 lg:gap-4">
-                    {/* Variax Block (if exists) */}
-                    {design.chain.map((comp, idx) => {
-                        const type = comp.type?.toLowerCase() || 'default';
-                        const cfg = typeConfig[type] || typeConfig.default;
-                        const Icon = cfg.Icon;
+            <div className="relative w-full rounded-xl border border-slate-300 dark:border-[#3f5256] bg-white dark:bg-background-dark overflow-hidden">
+                <div className="flex justify-between items-center px-6 pt-6 mb-2 opacity-80">
+                    <div className="flex flex-col gap-1">
+                        <h3 className="text-slate-500 dark:text-text-muted uppercase text-[10px] font-bold tracking-[0.2em]">{t('chat.realChain')}</h3>
+                        {activeSnapshot && (
+                            <span className="text-primary text-[10px] font-bold bg-primary/10 px-1.5 py-0.5 rounded w-fit">
+                                {activeSnapshot.name} Mode
+                            </span>
+                        )}
+                    </div>
+                    {/* Guitar & Tuning Info */}
+                    {(() => {
+                        const currentModel = activeSnapshot?.guitar_model || design.guitar_model;
+                        const currentTuning = activeSnapshot?.tuning || design.tuning;
+
+                        if (!currentModel && !currentTuning) return null;
 
                         return (
-                            <div key={idx} className="flex flex-col items-center gap-2 group w-20 cursor-help" title={comp.description}>
-                                {/* Stompbox Body */}
-                                <div className={`relative w-16 h-14 ${cfg.color} ${cfg.hoverColor} rounded-md border-b-4 ${cfg.borderColor} shadow-lg flex items-center justify-center transition-all transform hover:-translate-y-1 z-10 p-3`}>
-                                    <Icon className="w-full h-full text-white drop-shadow-md select-none" />
-                                    {/* LED */}
-                                    <div className="absolute top-1 right-1 w-1.5 h-1.5 bg-red-400 rounded-full shadow-[0_0_5px_rgba(239,68,68,0.8)]"></div>
+                            <div className="flex items-center gap-3 text-primary text-[11px] font-bold">
+                                {currentModel && (
+                                    <div className="flex items-center gap-1.5 bg-primary/10 px-2 py-1 rounded">
+                                        <span>{currentModel}</span>
+                                    </div>
+                                )}
+                                <div className="flex items-center gap-1">
+                                    <span className="material-symbols-outlined text-sm">tune</span>
+                                    <span>{currentTuning && currentTuning !== 'Standard' ? currentTuning : 'Standard'}</span>
                                 </div>
-
-                                {/* Labels */}
-                                <span className={`text-[9px] font-bold ${cfg.text} bg-white/90 dark:bg-background-dark/80 px-1.5 py-0.5 rounded border border-slate-300 dark:border-border-dark select-none uppercase tracking-tighter`}>
-                                    {cfg.label}
-                                </span>
-                                <span className="text-[10px] text-slate-600 dark:text-gray-300 truncate w-full text-center font-medium px-1">
-                                    {comp.name}
-                                </span>
                             </div>
                         );
-                    })}
+                    })()}
+                </div>
+
+                <div className="relative py-10 px-4 overflow-x-auto scrollbar-hide">
+                    {/* Horizontal Signal Line (Desktop) */}
+                    <div className="hidden xl:block absolute top-[68px] left-0 w-full h-[1px] bg-slate-200 dark:bg-border-dark z-0"></div>
+                    {/* Vertical Signal Line (Mobile) */}
+                    <div className="block xl:hidden absolute left-1/2 top-0 w-1 h-full bg-slate-200 dark:bg-border-dark -translate-x-1/2 z-0"></div>
+
+                    {/* Blocks Container */}
+                    <div className="relative z-10 flex flex-col xl:flex-row flex-wrap items-start justify-center gap-12 xl:gap-6 px-8 min-w-full xl:min-w-max">
+                        {/* Signal Chain Blocks */}
+                        {design.chain.map((comp, idx) => {
+                            const type = comp.type?.toLowerCase() || 'default';
+                            const cfg = typeConfig[type] || typeConfig.default;
+                            const Icon = cfg.Icon;
+
+                            // Snapshot logic for design view
+                            let isEnabled = true;
+                            if (activeSnapshot && activeSnapshot.active_blocks) {
+                                isEnabled = activeSnapshot.active_blocks.some(name => {
+                                    const n = name.toLowerCase();
+                                    const bn = comp.name.toLowerCase();
+                                    const bm = (comp.model || "").toLowerCase();
+                                    // Stricter matching for AI-generated names
+                                    return n === bn || n === bm || bn.includes(n) || bm.includes(n);
+                                });
+                            }
+
+                            return (
+                                <div key={idx} className={`flex flex-col items-center gap-2 group w-20 cursor-help transition-all duration-300 ${!isEnabled ? 'opacity-30 grayscale' : 'opacity-100'}`} title={comp.description}>
+                                    {/* Stompbox Body */}
+                                    <div className={`relative w-16 h-14 ${cfg.color} ${cfg.hoverColor} rounded-md border-b-4 ${cfg.borderColor} shadow-lg flex items-center justify-center transition-all transform hover:-translate-y-1 z-10 p-3`}>
+                                        <Icon className="w-full h-full text-white drop-shadow-md select-none" />
+                                    </div>
+
+                                    {/* Labels */}
+                                    <span className={`text-[9px] font-bold ${cfg.text} bg-white/90 dark:bg-background-dark/80 px-1.5 py-0.5 rounded border border-slate-300 dark:border-border-dark select-none uppercase tracking-tighter`}>
+                                        {cfg.label}
+                                    </span>
+                                    <span className="text-[10px] text-slate-600 dark:text-gray-300 truncate w-full text-center font-medium px-1">
+                                        {comp.name}
+                                    </span>
+                                </div>
+                            );
+                        })}
+                    </div>
                 </div>
             </div>
 

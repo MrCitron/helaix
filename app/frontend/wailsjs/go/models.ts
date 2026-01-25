@@ -67,12 +67,33 @@ export namespace gemini {
 	        this.settings = source["settings"];
 	    }
 	}
+	export class Snapshot {
+	    name: string;
+	    active_blocks: string[];
+	    guitar_model?: string;
+	    tuning?: string;
+	    params?: Record<string, any>;
+	
+	    static createFrom(source: any = {}) {
+	        return new Snapshot(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.name = source["name"];
+	        this.active_blocks = source["active_blocks"];
+	        this.guitar_model = source["guitar_model"];
+	        this.tuning = source["tuning"];
+	        this.params = source["params"];
+	    }
+	}
 	export class RigDescription {
 	    suggested_name: string;
 	    explanation: string;
 	    guitar_model: string;
 	    tuning: string;
 	    chain: RigComponent[];
+	    snapshots?: Snapshot[];
 	
 	    static createFrom(source: any = {}) {
 	        return new RigDescription(source);
@@ -85,6 +106,7 @@ export namespace gemini {
 	        this.guitar_model = source["guitar_model"];
 	        this.tuning = source["tuning"];
 	        this.chain = this.convertValues(source["chain"], RigComponent);
+	        this.snapshots = this.convertValues(source["snapshots"], Snapshot);
 	    }
 	
 		convertValues(a: any, classs: any, asMap: boolean = false): any {

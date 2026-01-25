@@ -40,21 +40,39 @@ func NewTemplatePreset(name string) (*Preset, error) {
 					}
 				}
 			}
+			// Clear dsp1 effect blocks
+			if dsp1, ok := tone["dsp1"].(map[string]interface{}); ok {
+				for k := range dsp1 {
+					if strings.HasPrefix(k, "block") || strings.HasPrefix(k, "cab") {
+						delete(dsp1, k)
+					}
+				}
+			}
 
 			// Clear Controllers
 			if ctrl, ok := tone["controller"].(map[string]interface{}); ok {
-				if dsp0, ok := ctrl["dsp0"].(map[string]interface{}); ok {
-					for k := range dsp0 {
-						delete(dsp0, k)
+				if dsp, ok := ctrl["dsp0"].(map[string]interface{}); ok {
+					for k := range dsp {
+						delete(dsp, k)
+					}
+				}
+				if dsp, ok := ctrl["dsp1"].(map[string]interface{}); ok {
+					for k := range dsp {
+						delete(dsp, k)
 					}
 				}
 			}
 
 			// Clear Footswitches
 			if fs, ok := tone["footswitch"].(map[string]interface{}); ok {
-				if dsp0, ok := fs["dsp0"].(map[string]interface{}); ok {
-					for k := range dsp0 {
-						delete(dsp0, k)
+				if dsp, ok := fs["dsp0"].(map[string]interface{}); ok {
+					for k := range dsp {
+						delete(dsp, k)
+					}
+				}
+				if dsp, ok := fs["dsp1"].(map[string]interface{}); ok {
+					for k := range dsp {
+						delete(dsp, k)
 					}
 				}
 			}
@@ -66,17 +84,27 @@ func NewTemplatePreset(name string) (*Preset, error) {
 				if snap, ok := tone[snapKey].(map[string]interface{}); ok {
 					// Clear blocks map in snapshot
 					if blocks, ok := snap["blocks"].(map[string]interface{}); ok {
-						if dsp0, ok := blocks["dsp0"].(map[string]interface{}); ok {
-							for k := range dsp0 {
-								delete(dsp0, k)
+						if dsp, ok := blocks["dsp0"].(map[string]interface{}); ok {
+							for k := range dsp {
+								delete(dsp, k)
+							}
+						}
+						if dsp, ok := blocks["dsp1"].(map[string]interface{}); ok {
+							for k := range dsp {
+								delete(dsp, k)
 							}
 						}
 					}
 					// Clear controllers map in snapshot
 					if ctrls, ok := snap["controllers"].(map[string]interface{}); ok {
-						if dsp0, ok := ctrls["dsp0"].(map[string]interface{}); ok {
-							for k := range dsp0 {
-								delete(dsp0, k)
+						if dsp, ok := ctrls["dsp0"].(map[string]interface{}); ok {
+							for k := range dsp {
+								delete(dsp, k)
+							}
+						}
+						if dsp, ok := ctrls["dsp1"].(map[string]interface{}); ok {
+							for k := range dsp {
+								delete(dsp, k)
 							}
 						}
 					}

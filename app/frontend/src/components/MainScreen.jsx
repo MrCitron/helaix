@@ -2,7 +2,7 @@ import React from 'react';
 import { GxChatSoundEngineer, GxChatPresetEngineer, GxSaveFile } from '../../wailsjs/go/main/App';
 import { useI18n } from '../i18n';
 import DesignVisualizer from './DesignVisualizer';
-import PresetVisualizer from './PresetVisualizer';
+import MessageVisualizer from './MessageVisualizer';
 import ChatInput from './ChatInput';
 import ExportModal from './ExportModal';
 
@@ -209,26 +209,14 @@ const MainScreen = ({ config, chatData, onUpdateChat, onNewChat }) => {
                                         {msg.content && <p className="whitespace-pre-wrap break-words">{msg.content}</p>}
                                         {msg.hint && <p className="mt-2 text-slate-500 dark:text-text-secondary text-xs italic">{msg.hint}</p>}
 
-                                        {msg.design && (
-                                            <div className="mt-4 pt-4 border-t border-slate-300 dark:border-indigo-800/50 max-w-full overflow-hidden">
-                                                <p className="mb-3 text-sm text-slate-500 dark:text-text-secondary">{t('chat.proposedChain')}</p>
-                                                <DesignVisualizer
-                                                    design={msg.design}
-                                                    onGenerate={msg.preset ? null : () => handleBuildPreset(msg.id, msg.design)}
+                                        {(msg.design || msg.preset) && (
+                                            <div className="mt-4 pt-4 border-t border-slate-300 dark:border-indigo-800/50">
+                                                <MessageVisualizer
+                                                    msg={msg}
+                                                    messages={messages}
+                                                    onBuildPreset={handleBuildPreset}
+                                                    onExportHlx={handleExportHlx}
                                                 />
-                                            </div>
-                                        )}
-
-                                        {msg.preset && (
-                                            <div className="mt-4 pt-4 border-t border-slate-300 dark:border-indigo-800/50 space-y-4 max-w-full overflow-hidden">
-                                                <PresetVisualizer preset={msg.preset} compact={true} />
-                                                <button
-                                                    onClick={() => handleExportHlx(msg.preset)}
-                                                    className="w-full bg-primary hover:bg-[#0fb3d4] text-slate-900 h-10 px-4 rounded-lg flex items-center justify-center gap-2 font-bold transition-all shadow-lg shadow-primary/10"
-                                                >
-                                                    <span className="material-symbols-outlined text-[18px]">download</span>
-                                                    {t('chat.exportBtn')}
-                                                </button>
                                             </div>
                                         )}
 

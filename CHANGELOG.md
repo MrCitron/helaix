@@ -5,6 +5,20 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.0] - 2026-01-27
+
+### Added
+- **Multi-Snapshot Support**: AI now generates song-specific snapshots (e.g., Intro, Verse, Chorus) with independent bypass states and parameter shifts.
+- **Snapshot Visualization**: New UI selector for snapshots and real-time visualization of dimmed/active blocks.
+- **Character-Perfect Variax Engine 2.0**:
+    - **Physical Calibration**: Standardized JTV bank order (T-Model, Spank, Lester) to match physical hardware MIDI mapping.
+    - **Hardware-Aware UI**: Dynamic bank labels that adapt to your Variax model (JTV vs Shuriken).
+    - **Real-World Branding**: AI now uses iconic guitar names (e.g., "Fender Jaguar") in metadata for a professional design view.
+- **"Perfect Circuit" UI Alignment**: Standardized signal path lines to precisely bisect stompbox icons at a fixed 68px offset.
+
+### Changed
+- **Baseline Alignment**: Switched signal chain layout to `items-start` for better icon stability across varying label lengths.
+
 ## [0.7.0] - 2026-01-18
 
 ### Added
