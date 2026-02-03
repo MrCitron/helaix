@@ -18,8 +18,8 @@ export function GxGetDefaultOutputPath() {
   return window['go']['main']['App']['GxGetDefaultOutputPath']();
 }
 
-export function GxListModels() {
-  return window['go']['main']['App']['GxListModels']();
+export function GxListModels(arg1, arg2) {
+  return window['go']['main']['App']['GxListModels'](arg1, arg2);
 }
 
 export function GxOpenFolderOfFile(arg1) {
@@ -42,6 +42,6 @@ export function GxSelectFolder(arg1) {
   return window['go']['main']['App']['GxSelectFolder'](arg1);
 }
 
-export function GxTestConnection() {
-  return window['go']['main']['App']['GxTestConnection']();
+export function GxTestConnection(arg1, arg2) {
+  return window['go']['main']['App']['GxTestConnection'](arg1, arg2);
 }

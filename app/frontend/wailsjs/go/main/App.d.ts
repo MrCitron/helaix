@@ -12,7 +12,7 @@ export function GxGetConfig():Promise<config.AppConfig>;
 
 export function GxGetDefaultOutputPath():Promise<string>;
 
-export function GxListModels():Promise<Array<string>>;
+export function GxListModels(arg1:string,arg2:string):Promise<Array<string>>;
 
 export function GxOpenFolderOfFile(arg1:string):Promise<void>;
 
@@ -24,4 +24,4 @@ export function GxSaveFile(arg1:helix.Preset,arg2:string):Promise<string>;
 
 export function GxSelectFolder(arg1:string):Promise<string>;
 
-export function GxTestConnection():Promise<string>;
+export function GxTestConnection(arg1:string,arg2:string):Promise<string>;

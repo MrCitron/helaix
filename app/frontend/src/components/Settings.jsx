@@ -23,11 +23,12 @@ const Settings = ({ config, onSave }) => {
 
     useEffect(() => {
         const fetchModels = async () => {
-            if (!config.api_key) return;
+            if (!localConfig.api_key) return;
 
             setLoadingModels(true);
             try {
-                const models = await GxListModels();
+                // Pass current local API key and model to list models
+                const models = await GxListModels(localConfig.api_key, localConfig.model);
                 if (models && models.length > 0) {
                     setAvailableModels(models);
                 }
@@ -37,8 +38,14 @@ const Settings = ({ config, onSave }) => {
                 setLoadingModels(false);
             }
         };
-        fetchModels();
-    }, [config.api_key]);
+
+        // Fetch models when API key changes (with a slight delay to avoid excessive calls)
+        const timer = setTimeout(() => {
+            fetchModels();
+        }, 500);
+
+        return () => clearTimeout(timer);
+    }, [localConfig.api_key]);
 
     const handleSave = async () => {
         setSaving(true);
@@ -54,13 +61,20 @@ const Settings = ({ config, onSave }) => {
     const handleTestConnection = async () => {
         setTestStatus('testing');
         try {
-            const result = await GxTestConnection();
+            // Pass current local API key and model to test connection
+            const result = await GxTestConnection(localConfig.api_key, localConfig.model);
             if (result) {
                 // Success case
                 console.log('Test connection success:', result);
                 setTestStatus('success');
                 // Keep success status visible for 5 seconds
                 setTimeout(() => setTestStatus(''), 5000);
+
+                // If successful, also refresh models manually to be sure
+                const models = await GxListModels(localConfig.api_key, localConfig.model);
+                if (models && models.length > 0) {
+                    setAvailableModels(models);
+                }
             } else {
                 throw new Error('No response from server');
             }

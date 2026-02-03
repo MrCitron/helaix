@@ -124,20 +124,18 @@ func (a *App) GxSaveFile(preset helix.Preset, filename string) (string, error) {
 }
 
 // GxListModels returns the available models from the provider
-func (a *App) GxListModels() ([]string, error) {
-	cfg := a.config.Get()
-	if cfg.ApiKey == "" {
+func (a *App) GxListModels(apiKey string, modelName string) ([]string, error) {
+	if apiKey == "" {
 		return []string{}, nil
 	}
 
-	// Get the first available model name from config or use fallback
-	modelName := cfg.Model
+	// Use fallback if no model name provided
 	if modelName == "" {
-		modelName = "gemini-2.5-flash" // Fallback only if no model in config
+		modelName = "gemini-2.5-flash"
 	}
 
 	// Create a temporary client just for listing
-	client, err := gemini.NewClient(a.ctx, cfg.ApiKey, modelName)
+	client, err := gemini.NewClient(a.ctx, apiKey, modelName)
 	if err != nil {
 		return nil, err
 	}
@@ -179,20 +177,18 @@ func (a *App) GxGetDefaultOutputPath() string {
 }
 
 // GxTestConnection validates the API key by listing models
-func (a *App) GxTestConnection() (string, error) {
-	cfg := a.config.Get()
-	if cfg.ApiKey == "" {
+func (a *App) GxTestConnection(apiKey string, modelName string) (string, error) {
+	if apiKey == "" {
 		return "", fmt.Errorf("API Key is missing")
 	}
 
-	// Get the model name from config or use fallback
-	modelName := cfg.Model
+	// Use fallback if no model name provided
 	if modelName == "" {
-		modelName = "gemini-2.5-flash" // Fallback only if no model in config
+		modelName = "gemini-2.5-flash"
 	}
 
 	// Create client and test connection
-	client, err := gemini.NewClient(a.ctx, cfg.ApiKey, modelName)
+	client, err := gemini.NewClient(a.ctx, apiKey, modelName)
 	if err != nil {
 		return "", err
 	}
