@@ -1,0 +1,113 @@
+[
+  {
+    "name": "clean",
+    "rig": {
+      "suggested_name": "CLEAN STUDIO",
+      "explanation": "Clean, articulate studio tone with natural space.",
+      "guitar_model": "Fender Stratocaster",
+      "tuning": "Standard",
+      "chain": [
+        {"type": "amp", "name": "Fender Twin clean amp", "description": "High-headroom clean foundation.", "settings": "Clean, crystal clear, low gain"},
+        {"type": "cab", "name": "Open clean cab", "description": "Open-back clean response.", "settings": "2x12 open back"},
+        {"type": "reverb", "name": "Natural spring reverb", "description": "Subtle studio ambience.", "settings": "Short spring reverb"}
+      ]
+    },
+    "expected_hints": {
+      "Fender Twin clean amp": ["clean", "deluxe", "twin", "princess", "rivet", "jazz", "fullerton"],
+      "Natural spring reverb": ["spring"]
+    }
+  },
+  {
+    "name": "crunch",
+    "rig": {
+      "suggested_name": "BRIT CRUNCH",
+      "explanation": "Responsive British crunch for classic rock rhythm.",
+      "guitar_model": "Gibson Les Paul Standard",
+      "tuning": "Standard",
+      "chain": [
+        {"type": "pedal", "name": "Klon-style boost", "description": "Push the amp without excessive saturation.", "settings": "Low drive, level boost"},
+        {"type": "amp", "name": "Marshall Plexi crunch amp", "description": "Classic British crunch.", "settings": "Crunch, vintage rock, medium gain"},
+        {"type": "cab", "name": "British 4x12 cab", "description": "Focused classic rock speaker response.", "settings": "4x12 British cab"},
+        {"type": "reverb", "name": "Short room reverb", "description": "Keep the rhythm dry and present.", "settings": "Short room"}
+      ]
+    },
+    "expected_hints": {
+      "Marshall Plexi crunch amp": ["plexi", "brit", "matchstick", "tweed", "essex", "a30", "rocker"]
+    }
+  },
+  {
+    "name": "high-gain",
+    "rig": {
+      "suggested_name": "MODERN LEAD",
+      "explanation": "Singing high-gain lead with a tight low end.",
+      "guitar_model": "Gibson Les Paul Standard",
+      "tuning": "Drop D",
+      "chain": [
+        {"type": "pedal", "name": "Tight lead boost", "description": "Tighten the low end before the amp.", "settings": "High gain lead boost"},
+        {"type": "amp", "name": "Modern high-gain lead amp", "description": "Saturated modern lead voice.", "settings": "High-gain, modern, tight lead"},
+        {"type": "cab", "name": "Modern 4x12 cab", "description": "Focused high-gain speaker response.", "settings": "4x12 closed back"},
+        {"type": "delay", "name": "Lead digital delay", "description": "Short lead repeats.", "settings": "Digital delay, low feedback"}
+      ]
+    },
+    "expected_hints": {
+      "Modern high-gain lead amp": ["lead", "rectifire", "vitriol", "panama", "ubersonic", "badonk", "fatality", "placater", "revv", "meteor", "solo", "cartographer"]
+    }
+  },
+  {
+    "name": "ambient",
+    "rig": {
+      "suggested_name": "AMBIENT WASH",
+      "explanation": "Wide clean ambient texture with shimmer and motion.",
+      "guitar_model": "Fender Stratocaster",
+      "tuning": "Standard",
+      "chain": [
+        {"type": "amp", "name": "Clean ambient amp", "description": "Clean platform for spacious effects.", "settings": "Clean, low gain"},
+        {"type": "cab", "name": "Wide clean cab", "description": "Neutral speaker response.", "settings": "2x12 open back"},
+        {"type": "modulation", "name": "Ambient chorus", "description": "Slow width and movement.", "settings": "Wide chorus, slow rate"},
+        {"type": "delay", "name": "Ambient shimmer delay", "description": "Spacious repeats that bloom.", "settings": "Ambient, ethereal, shimmer"},
+        {"type": "reverb", "name": "Ambient shimmer reverb", "description": "Long atmospheric reverb.", "settings": "Ambient, ethereal, shimmer"}
+      ]
+    },
+    "expected_hints": {
+      "Ambient shimmer delay": ["cosmos", "heliosphere", "adriatic", "tape"],
+      "Ambient shimmer reverb": ["shimmer", "glitz", "ganymede", "plateaux", "searchlights", "particle", "cave"]
+    }
+  },
+  {
+    "name": "metal",
+    "rig": {
+      "suggested_name": "TIGHT METAL",
+      "explanation": "Tight modern metal rhythm with controlled low end.",
+      "guitar_model": "Gibson Les Paul Standard",
+      "tuning": "Drop C",
+      "chain": [
+        {"type": "pedal", "name": "Metal tight boost", "description": "Tighten modern metal rhythm.", "settings": "Tight high-gain boost"},
+        {"type": "amp", "name": "Modern metal amp", "description": "Aggressive high-gain rhythm.", "settings": "Metal, modern, high-gain, tight"},
+        {"type": "cab", "name": "Tight metal 4x12 cab", "description": "Closed-back metal cabinet.", "settings": "4x12 closed back"},
+        {"type": "reverb", "name": "Short metal room", "description": "Minimal space without washing out the rhythm.", "settings": "Short room"}
+      ]
+    },
+    "expected_hints": {
+      "Modern metal amp": ["lead", "rectifire", "vitriol", "panama", "ubersonic", "badonk", "fatality", "placater", "revv", "meteor", "solo", "cartographer"]
+    }
+  },
+  {
+    "name": "acoustic",
+    "rig": {
+      "suggested_name": "ACOUSTIC AIR",
+      "explanation": "Natural acoustic tone with corrective EQ and subtle air.",
+      "guitar_model": "Martin D-28 Acoustic",
+      "tuning": "Standard",
+      "chain": [
+        {"type": "variax", "name": "Line6 Variax", "description": "Acoustic guitar input model.", "settings": "Martin D-28 Acoustic"},
+        {"type": "pedal", "name": "Parametric EQ for acoustic", "description": "Correct piezo harshness and low-end buildup.", "settings": "Acoustic EQ, transparent"},
+        {"type": "amp", "name": "Clean acoustic amp", "description": "Neutral clean acoustic platform.", "settings": "Clean, low gain"},
+        {"type": "cab", "name": "Full range acoustic cab", "description": "Natural full-range speaker response.", "settings": "Full range cabinet"},
+        {"type": "reverb", "name": "Natural acoustic room", "description": "Subtle air around the acoustic signal.", "settings": "Short room"}
+      ]
+    },
+    "expected_hints": {
+      "Parametric EQ for acoustic": ["parametric"]
+    }
+  }
+]
