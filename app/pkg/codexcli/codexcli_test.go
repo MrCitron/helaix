@@ -2,6 +2,7 @@ package codexcli
 
 import (
 	"HelAIx/pkg/gemini"
+	"HelAIx/pkg/helix"
 	"context"
 	"encoding/json"
 	"errors"
@@ -111,6 +112,110 @@ func TestBuildDoesNotRetryValidHelixResponse(t *testing.T) {
 	assertCodexCalls(t, callsPath, 1)
 }
 
+func TestBuildAppliesValidParameters(t *testing.T) {
+	path := fakeCodex(t)
+	t.Setenv("FAKE_RESPONSE", validBuildResponseWithDriveParams())
+	client, err := New(path, "")
+	if err != nil {
+		t.Fatalf("New() error = %v", err)
+	}
+	preset, err := client.Build(context.Background(), testBuildRig(), "TEST RIG", nil, "Helix Floor", 1, false, "Standard")
+	if err != nil {
+		t.Fatalf("Build() error = %v", err)
+	}
+	drive := presetBlock(t, preset, "dsp0", "block0")
+	if got := drive["Gain"]; got != 0.2 {
+		t.Fatalf("Drive Gain = %v, want 0.2", got)
+	}
+	if got := drive["Tone"]; got != 0.4 {
+		t.Fatalf("Drive Tone = %v, want 0.4", got)
+	}
+}
+
+func TestBuildSerializesMultipleBlockParameters(t *testing.T) {
+	path := fakeCodex(t)
+	t.Setenv("FAKE_RESPONSE", validBuildResponseWithMultipleBlockParams())
+	client, err := New(path, "")
+	if err != nil {
+		t.Fatalf("New() error = %v", err)
+	}
+	preset, err := client.Build(context.Background(), testBuildRig(), "TEST RIG", nil, "Helix Floor", 1, false, "Standard")
+	if err != nil {
+		t.Fatalf("Build() error = %v", err)
+	}
+	encoded, err := json.Marshal(preset)
+	if err != nil {
+		t.Fatalf("marshal preset: %v", err)
+	}
+	var decoded helix.Preset
+	if err := json.Unmarshal(encoded, &decoded); err != nil {
+		t.Fatalf("unmarshal preset: %v", err)
+	}
+
+	assertBlockParameters(t, presetBlock(t, &decoded, "dsp0", "block0"), map[string]interface{}{
+		"Drive":    0.33,
+		"Bass Cut": true,
+		"Voltage":  false,
+	})
+	assertBlockParameters(t, presetBlock(t, &decoded, "dsp0", "block1"), map[string]interface{}{
+		"Drive":  0.35,
+		"Bass":   0.45,
+		"Master": 0.75,
+	})
+	assertBlockParameters(t, presetBlock(t, &decoded, "dsp0", "block2"), map[string]interface{}{
+		"Distance": 3.0,
+		"HighCut":  8000.0,
+		"LowCut":   80.0,
+		"Mic":      4.0,
+		"Position": 0.5,
+	})
+}
+
+func TestBuildRejectsOutOfRangeParameters(t *testing.T) {
+	path := fakeCodex(t)
+	t.Setenv("FAKE_RESPONSE", outOfRangeBuildResponse())
+	callsPath := filepath.Join(t.TempDir(), "calls")
+	t.Setenv("FAKE_CALLS_PATH", callsPath)
+	client, err := New(path, "")
+	if err != nil {
+		t.Fatalf("New() error = %v", err)
+	}
+	_, err = client.Build(context.Background(), testBuildRig(), "TEST RIG", nil, "Helix Floor", 1, false, "Standard")
+	if !errors.Is(err, ErrInvalidResponse) {
+		t.Fatalf("Build() error = %v, want ErrInvalidResponse", err)
+	}
+	assertCodexCalls(t, callsPath, 2)
+}
+
+func TestBuildRetriesOutOfRangeParameters(t *testing.T) {
+	path := fakeCodex(t)
+	t.Setenv("FAKE_RESPONSE", outOfRangeBuildResponse())
+	t.Setenv("FAKE_RETRY_RESPONSE", validBuildResponseWithDriveParams())
+	callsPath := filepath.Join(t.TempDir(), "calls")
+	t.Setenv("FAKE_CALLS_PATH", callsPath)
+	promptPath := filepath.Join(t.TempDir(), "prompt")
+	t.Setenv("FAKE_PROMPT_PATH", promptPath)
+	client, err := New(path, "")
+	if err != nil {
+		t.Fatalf("New() error = %v", err)
+	}
+	preset, err := client.Build(context.Background(), testBuildRig(), "TEST RIG", nil, "Helix Floor", 1, false, "Standard")
+	if err != nil {
+		t.Fatalf("Build() error = %v", err)
+	}
+	assertCodexCalls(t, callsPath, 2)
+	if got := presetBlock(t, preset, "dsp0", "block0")["Gain"]; got != 0.2 {
+		t.Fatalf("corrected Drive Gain = %v, want 0.2", got)
+	}
+	prompt, err := os.ReadFile(promptPath)
+	if err != nil {
+		t.Fatalf("read retry prompt: %v", err)
+	}
+	if !strings.Contains(string(prompt), "outside the allowed range") {
+		t.Fatalf("retry prompt does not explain the out-of-range parameter: %s", prompt)
+	}
+}
+
 func TestPresetPromptListsOnlyComponentCandidates(t *testing.T) {
 	prompt, err := presetPrompt(gemini.RigDescription{
 		Chain: []gemini.RigComponent{{Type: "amp", Name: "Amp"}},
@@ -129,6 +234,9 @@ func TestPresetPromptListsOnlyComponentCandidates(t *testing.T) {
 	}
 	if !strings.Contains(prompt, "complete, validated combination") {
 		t.Fatal("presetPrompt() does not require the planner tuple to be preserved")
+	}
+	if !strings.Contains(prompt, "optional params object") {
+		t.Fatal("presetPrompt() does not instruct Codex to dial model parameters")
 	}
 }
 
@@ -193,6 +301,29 @@ func TestSchemasAreValidJSON(t *testing.T) {
 		if !json.Valid(schema) {
 			t.Fatalf("schema is invalid JSON: %s", schema)
 		}
+	}
+}
+
+func TestBlocksSchemaAllowsPrimitiveParameters(t *testing.T) {
+	var schema map[string]interface{}
+	if err := json.Unmarshal(blocksSchema(), &schema); err != nil {
+		t.Fatalf("unmarshal blocks schema: %v", err)
+	}
+	properties := schema["properties"].(map[string]interface{})
+	blocks := properties["blocks"].(map[string]interface{})
+	items := blocks["items"].(map[string]interface{})
+	blockProperties := items["properties"].(map[string]interface{})
+	params, exists := blockProperties["params"].(map[string]interface{})
+	if !exists || params["type"] != "object" {
+		t.Fatalf("params schema = %v, want object", params)
+	}
+	values, exists := params["additionalProperties"].(map[string]interface{})
+	if !exists {
+		t.Fatalf("params schema = %v, want primitive value schema", params)
+	}
+	allowed := values["type"].([]interface{})
+	if len(allowed) != 3 || allowed[0] != "number" || allowed[1] != "string" || allowed[2] != "boolean" {
+		t.Fatalf("parameter types = %v, want number, string, boolean", allowed)
 	}
 }
 
@@ -282,6 +413,48 @@ func invalidBuildResponse() string {
 
 func validBuildResponse() string {
 	return `{"blocks":[{"name":"Drive","model_name":"Scream 808","path":0,"params":{}},{"name":"Amp","model_name":"US Deluxe Nrm","path":0,"params":{}},{"name":"Cab","model_name":"1x12 US Deluxe","path":0,"params":{}}]}`
+}
+
+func validBuildResponseWithDriveParams() string {
+	return `{"blocks":[{"name":"Drive","model_name":"Scream 808","path":0,"params":{"Gain":0.2,"Tone":0.4}},{"name":"Amp","model_name":"US Deluxe Nrm","path":0,"params":{}},{"name":"Cab","model_name":"1x12 US Deluxe","path":0,"params":{}}]}`
+}
+
+func validBuildResponseWithMultipleBlockParams() string {
+	return `{"blocks":[{"name":"Drive","model_name":"Prize Drive","path":0,"params":{"Drive":0.33,"Bass Cut":true,"Voltage":false}},{"name":"Amp","model_name":"US Deluxe Nrm","path":0,"params":{"Drive":0.35,"Bass":0.45,"Master":0.75}},{"name":"Cab","model_name":"1x12 US Deluxe","path":0,"params":{"Distance":3,"HighCut":8000,"LowCut":80,"Mic":4,"Position":0.5}}]}`
+}
+
+func outOfRangeBuildResponse() string {
+	return `{"blocks":[{"name":"Drive","model_name":"Scream 808","path":0,"params":{"Gain":1.1}},{"name":"Amp","model_name":"US Deluxe Nrm","path":0,"params":{}},{"name":"Cab","model_name":"1x12 US Deluxe","path":0,"params":{}}]}`
+}
+
+func presetBlock(t *testing.T, preset *helix.Preset, dspName, blockName string) map[string]interface{} {
+	t.Helper()
+	data, ok := (*preset)["data"].(map[string]interface{})
+	if !ok {
+		t.Fatal("preset has no data")
+	}
+	tone, ok := data["tone"].(map[string]interface{})
+	if !ok {
+		t.Fatal("preset has no tone")
+	}
+	dsp, ok := tone[dspName].(map[string]interface{})
+	if !ok {
+		t.Fatalf("preset has no %s", dspName)
+	}
+	block, ok := dsp[blockName].(map[string]interface{})
+	if !ok {
+		t.Fatalf("preset has no %s in %s", blockName, dspName)
+	}
+	return block
+}
+
+func assertBlockParameters(t *testing.T, block map[string]interface{}, want map[string]interface{}) {
+	t.Helper()
+	for name, value := range want {
+		if got := block[name]; got != value {
+			t.Errorf("parameter %q = %v, want %v", name, got, value)
+		}
+	}
 }
 
 func assertCodexCalls(t *testing.T, path string, want int) {

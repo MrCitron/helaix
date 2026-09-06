@@ -3,6 +3,7 @@ app/frontend/node_modules
 app/frontend/dist
 app/frontend/build_log.txt
 app/frontend/build_error.log
+app/frontend/package.json.md5
 tools/**/*
 specs/baseline/resources
 HelAIx.exe
