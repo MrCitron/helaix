@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useI18n } from '../i18n';
-import { GxSaveConfig, GxTestConnection, GxSelectFolder, GxGetDefaultOutputPath, GxListModels } from '../../wailsjs/go/main/App';
+import { GxSaveConfig, GxTestConnection, GxTestCodexCLI, GxSelectFolder, GxGetDefaultOutputPath, GxListModels, GxGetCodexCLIStatus } from '../../wailsjs/go/main/App';
 import { HelixIcons } from './IconLibrary';
 
 const Settings = ({ config, onSave }) => {
@@ -12,6 +12,17 @@ const Settings = ({ config, onSave }) => {
     const [defaultPath, setDefaultPath] = useState('');
     const [availableModels, setAvailableModels] = useState([]);
     const [loadingModels, setLoadingModels] = useState(false);
+    const [codexStatus, setCodexStatus] = useState(null);
+    const isGemini = localConfig.provider !== 'codex_cli';
+    const codexStatusText = !codexStatus
+        ? t('settings.codexCheckingStatus')
+        : !codexStatus.installed
+            ? t('settings.codexNotFound')
+            : codexStatus.authentication === 'api'
+                ? t('settings.codexApiKeyAuth')
+                : codexStatus.connected
+                    ? t('settings.codexConnected')
+                    : t('settings.codexNotSignedIn');
 
     useEffect(() => {
         const fetchDefault = async () => {
@@ -22,8 +33,19 @@ const Settings = ({ config, onSave }) => {
     }, []);
 
     useEffect(() => {
+        const fetchCodexStatus = async () => {
+            try {
+                setCodexStatus(await GxGetCodexCLIStatus(localConfig.codex_cli_path || ''));
+            } catch (err) {
+                console.error('Failed to load Codex CLI status:', err);
+            }
+        };
+        fetchCodexStatus();
+    }, [localConfig.codex_cli_path, localConfig.provider]);
+
+    useEffect(() => {
         const fetchModels = async () => {
-            if (!localConfig.api_key) return;
+            if (!isGemini || !localConfig.api_key) return;
 
             setLoadingModels(true);
             try {
@@ -45,7 +67,7 @@ const Settings = ({ config, onSave }) => {
         }, 500);
 
         return () => clearTimeout(timer);
-    }, [localConfig.api_key]);
+    }, [isGemini, localConfig.api_key]);
 
     const handleSave = async () => {
         setSaving(true);
@@ -61,6 +83,13 @@ const Settings = ({ config, onSave }) => {
     const handleTestConnection = async () => {
         setTestStatus('testing');
         try {
+            if (!isGemini) {
+                await GxTestCodexCLI(localConfig.codex_cli_path || '', localConfig.model || '');
+                setCodexStatus(await GxGetCodexCLIStatus(localConfig.codex_cli_path || ''));
+                setTestStatus('success');
+                setTimeout(() => setTestStatus(''), 5000);
+                return;
+            }
             // Pass current local API key and model to test connection
             const result = await GxTestConnection(localConfig.api_key, localConfig.model);
             if (result) {
@@ -123,10 +152,19 @@ const Settings = ({ config, onSave }) => {
                             <p className="text-base font-medium leading-normal">{t('settings.provider')}</p>
                             <div className="relative">
                                 <select
-                                    disabled
-                                    className="w-full appearance-none rounded-lg border border-border-light dark:border-border-dark bg-surface-light dark:bg-surface-dark px-4 h-14 text-base focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary transition-all cursor-not-allowed"
+                                    value={localConfig.provider || 'gemini'}
+                                    onChange={(e) => {
+                                        const provider = e.target.value;
+                                        setLocalConfig({
+                                            ...localConfig,
+                                            provider,
+                                            model: provider === 'codex_cli' ? '' : localConfig.model || 'gemini-2.5-flash'
+                                        });
+                                    }}
+                                    className="w-full appearance-none rounded-lg border border-border-light dark:border-border-dark bg-surface-light dark:bg-surface-dark px-4 h-14 text-base focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary transition-all cursor-pointer"
                                 >
-                                    <option value="google">Google Gemini API</option>
+                                    <option value="gemini">{t('settings.providerGemini')}</option>
+                                    <option value="codex_cli">{t('settings.codexSubscription')}</option>
                                 </select>
                                 <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-4 text-text-muted">
                                     <span className="material-symbols-outlined">expand_more</span>
@@ -134,13 +172,15 @@ const Settings = ({ config, onSave }) => {
                             </div>
                             <p className="text-xs text-text-muted mt-1 flex items-center gap-1">
                                 <span className="material-symbols-outlined text-[14px]">info</span>
-                                Using ai.google.dev API with API key authentication
+                                {isGemini
+                                    ? t('settings.providerGeminiHint')
+                                    : t('settings.providerCodexHint')}
                             </p>
                         </label>
 
                         <label className="flex flex-col flex-1 gap-2">
-                            <p className="text-base font-medium leading-normal">{t('settings.model')}</p>
-                            <div className="relative">
+                            <p className="text-base font-medium leading-normal">{isGemini ? t('settings.model') : t('settings.codexModel')}</p>
+                            {isGemini ? <div className="relative">
                                 <select
                                     value={localConfig.model}
                                     onChange={(e) => setLocalConfig({ ...localConfig, model: e.target.value })}
@@ -148,7 +188,7 @@ const Settings = ({ config, onSave }) => {
                                     className="w-full appearance-none rounded-lg border border-border-light dark:border-border-dark bg-surface-light dark:bg-surface-dark px-4 h-14 text-base focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary transition-all cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
                                 >
                                     {loadingModels ? (
-                                        <option>{t('settings.loadingModels') || 'Loading models...'}</option>
+                                        <option>{t('settings.loadingModels')}</option>
                                     ) : availableModels.length > 0 ? (
                                         availableModels.map(model => {
                                             // Clean up model name for display (remove "models/" prefix)
@@ -168,11 +208,29 @@ const Settings = ({ config, onSave }) => {
                                         {loadingModels ? 'sync' : 'expand_more'}
                                     </span>
                                 </div>
-                            </div>
+                            </div> : codexStatus?.supports_model ? <>
+                                <select
+                                    value={localConfig.model || ''}
+                                    onChange={(e) => setLocalConfig({ ...localConfig, model: e.target.value })}
+                                    className="w-full appearance-none rounded-lg border border-border-light dark:border-border-dark bg-surface-light dark:bg-surface-dark px-4 h-14 text-base focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary transition-all cursor-pointer"
+                                >
+                                    <option value="">{t('settings.codexDefaultModel')}</option>
+                                    {(codexStatus?.models || []).map((model) => (
+                                        <option key={model} value={model}>{model}</option>
+                                    ))}
+                                </select>
+                                <p className="text-xs text-text-muted">
+                                    {codexStatus?.models?.length
+                                        ? t('settings.codexCatalogVisible')
+                                        : t('settings.codexCatalogUnavailable')}
+                                </p>
+                            </> : <div className="flex h-14 items-center rounded-lg border border-border-light dark:border-border-dark bg-surface-light dark:bg-surface-dark px-4 text-text-muted">
+                                {t('settings.codexModelUnavailable')}
+                            </div>}
                         </label>
                     </div>
 
-                    <div className="px-4 py-2">
+                    {isGemini ? <div className="px-4 py-2">
                         <label className="flex flex-col flex-1 gap-2">
                             <p className="text-base font-medium leading-normal">{t('settings.apiKey')}</p>
                             <div className="flex flex-col md:flex-row gap-3">
@@ -185,7 +243,7 @@ const Settings = ({ config, onSave }) => {
                                         value={localConfig.api_key}
                                         onChange={(e) => setLocalConfig({ ...localConfig, api_key: e.target.value })}
                                         className="w-full rounded-lg border border-border-light dark:border-border-dark bg-surface-light dark:bg-surface-dark pl-10 pr-12 h-14 text-base focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary transition-all"
-                                        placeholder="Entrez votre clé API..."
+                                        placeholder={t('settings.apiKeyPlaceholder')}
                                     />
                                     <button
                                         onClick={() => setShowKey(!showKey)}
@@ -217,7 +275,29 @@ const Settings = ({ config, onSave }) => {
                                 {t('settings.keyHint')}
                             </p>
                         </label>
-                    </div>
+                    </div> : <div className="mx-4 rounded-lg border border-amber-500/30 bg-amber-500/10 p-4 text-sm text-amber-700 dark:text-amber-200">
+                        <p className="font-medium">{t('settings.codexSubscription')}</p>
+                        <p className="mt-1">{codexStatusText}</p>
+                        <label className="mt-4 flex flex-col gap-2">
+                            <span className="font-medium">{t('settings.codexExecutablePath')}</span>
+                            <input
+                                value={localConfig.codex_cli_path || ''}
+                                onChange={(e) => setLocalConfig({ ...localConfig, codex_cli_path: e.target.value })}
+                                placeholder={codexStatus?.executable || t('settings.codexExecutablePlaceholder')}
+                                className="h-10 rounded-lg border border-amber-500/40 bg-surface-light px-3 font-mono text-xs text-slate-900 dark:bg-surface-dark dark:text-white"
+                            />
+                        </label>
+                        {codexStatus?.version && <p className="mt-2 text-xs">{t('settings.codexDetected')} {codexStatus.version}</p>}
+                        {!codexStatus?.connected && <p className="mt-3 text-xs">{t('settings.codexLoginHint')}</p>}
+                        <button
+                            onClick={handleTestConnection}
+                            disabled={testStatus === 'testing' || !codexStatus?.connected}
+                            className="mt-4 flex h-10 items-center gap-2 rounded-lg border border-amber-500/50 px-4 font-medium transition-colors hover:bg-amber-500/20 disabled:opacity-50"
+                        >
+                            <span className={`material-symbols-outlined ${testStatus === 'testing' ? 'animate-spin' : ''}`}>{testStatus === 'testing' ? 'sync' : 'wifi_tethering'}</span>
+                            {testStatus === 'testing' ? t('settings.codexTesting') : t('settings.codexTestConnection')}
+                        </button>
+                    </div>}
                 </section>
 
                 {/* Export Section */}
@@ -265,11 +345,11 @@ const Settings = ({ config, onSave }) => {
                                     onChange={(e) => setLocalConfig({ ...localConfig, hardware_target: e.target.value })}
                                     className="w-full appearance-none rounded-lg border border-border-light dark:border-border-dark bg-surface-light dark:bg-surface-dark px-4 h-14 text-base focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary transition-all cursor-pointer"
                                 >
-                                    <optgroup label="Multi-DSP (Path 1 & 2)">
+                                    <optgroup label={t('settings.multiDsp')}>
                                         <option value="Helix Floor">Helix Floor / Rack</option>
                                         <option value="Helix LT">Helix LT</option>
                                     </optgroup>
-                                    <optgroup label="Single-DSP (Path 1 Only)">
+                                    <optgroup label={t('settings.singleDsp')}>
                                         <option value="HX Stomp">HX Stomp</option>
                                         <option value="HX Stomp XL">HX Stomp XL</option>
                                         <option value="HX Effects">HX Effects</option>
@@ -372,19 +452,25 @@ const Settings = ({ config, onSave }) => {
                         <div className="flex flex-col flex-1 gap-4">
                             {/* Lang Toggle */}
                             <div className="flex flex-col gap-2">
-                                <p className="text-base font-medium leading-normal">Language</p>
+                                <p className="text-base font-medium leading-normal">{t('settings.language')}</p>
                                 <div className="flex gap-4">
                                     <button
                                         onClick={() => changeLang('en')}
                                         className={`px-4 py-2 rounded-lg border ${lang === 'en' ? 'bg-primary/20 border-primary text-primary' : 'border-border-dark'}`}
                                     >
-                                        English
+                                        {t('settings.languageEnglish')}
                                     </button>
                                     <button
                                         onClick={() => changeLang('fr')}
                                         className={`px-4 py-2 rounded-lg border ${lang === 'fr' ? 'bg-primary/20 border-primary text-primary' : 'border-border-dark'}`}
                                     >
-                                        Français
+                                        {t('settings.languageFrench')}
+                                    </button>
+                                    <button
+                                        onClick={() => changeLang('es')}
+                                        className={`px-4 py-2 rounded-lg border ${lang === 'es' ? 'bg-primary/20 border-primary text-primary' : 'border-border-dark'}`}
+                                    >
+                                        {t('settings.languageSpanish')}
                                     </button>
                                 </div>
                             </div>

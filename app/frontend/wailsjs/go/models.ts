@@ -4,6 +4,7 @@ export namespace config {
 	    api_key: string;
 	    provider: string;
 	    model: string;
+	    codex_cli_path: string;
 	    output_path: string;
 	    hardware_target: string;
 	    delete_no_confirm: boolean;
@@ -21,6 +22,7 @@ export namespace config {
 	        this.api_key = source["api_key"];
 	        this.provider = source["provider"];
 	        this.model = source["model"];
+	        this.codex_cli_path = source["codex_cli_path"];
 	        this.output_path = source["output_path"];
 	        this.hardware_target = source["hardware_target"];
 	        this.delete_no_confirm = source["delete_no_confirm"];
@@ -130,3 +132,39 @@ export namespace gemini {
 
 }
 
+export namespace provider {
+
+	export class Status {
+	    provider: string;
+	    available: boolean;
+	    configured: boolean;
+	    connected: boolean;
+	    models?: string[];
+	    installed: boolean;
+	    executable?: string;
+	    version?: string;
+	    authentication?: string;
+	    supports_model: boolean;
+	    message: string;
+
+	    static createFrom(source: any = {}) {
+	        return new Status(source);
+	    }
+
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.provider = source["provider"];
+	        this.available = source["available"];
+	        this.configured = source["configured"];
+	        this.connected = source["connected"];
+	        this.models = source["models"];
+	        this.installed = source["installed"];
+	        this.executable = source["executable"];
+	        this.version = source["version"];
+	        this.authentication = source["authentication"];
+	        this.supports_model = source["supports_model"];
+	        this.message = source["message"];
+	    }
+	}
+
+}

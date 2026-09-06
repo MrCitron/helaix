@@ -144,7 +144,11 @@ func (c *Client) ChatSoundEngineer(ctx context.Context, history []ChatMessage, h
 	}
 
 	jsonText := resp.Candidates[0].Content.Parts[0].Text
+	return ParseRigDescriptionJSON(jsonText)
+}
 
+// ParseRigDescriptionJSON validates the structured design returned by any LLM provider.
+func ParseRigDescriptionJSON(jsonText string) (*RigDescription, error) {
 	var result RigDescription
 	decoder := json.NewDecoder(bytes.NewBufferString(jsonText))
 	decoder.DisallowUnknownFields()

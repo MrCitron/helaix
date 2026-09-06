@@ -141,6 +141,13 @@ func (c *Client) ChatPresetEngineer(ctx context.Context, rig *RigDescription, pr
 	}
 
 	jsonText := resp.Candidates[0].Content.Parts[0].Text
+	return BuildPresetFromJSON(jsonText, rig, presetName, hardware, defaultExp, variaxEnabled, hardwareModel)
+}
+
+// BuildPresetFromJSON validates a provider's block mapping and creates an exportable preset.
+func BuildPresetFromJSON(jsonText string, rig *RigDescription, presetName string, hardware string, defaultExp int, variaxEnabled bool, hardwareModel string) (*helix.Preset, error) {
+	helix.DB.EnsureLoaded()
+	isDualDSP := strings.Contains(hardware, "Floor") || strings.Contains(hardware, "LT") || strings.Contains(hardware, "Rack")
 
 	// 4. PRE-FLIGHT VARIAX SYNC: Ensure top-level fields are sync'd with Chain components
 	// (Agents are more reliable at updating the Chain/Params than top-level technical fields)

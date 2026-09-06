@@ -53,7 +53,7 @@ const DesignVisualizer = ({ design, onGenerate, activeSnapIdx: propsActiveSnapId
                         <h3 className="text-slate-500 dark:text-text-muted uppercase text-[10px] font-bold tracking-[0.2em]">{t('chat.realChain')}</h3>
                         {activeSnapshot && (
                             <span className="text-primary text-[10px] font-bold bg-primary/10 px-1.5 py-0.5 rounded w-fit">
-                                {activeSnapshot.name} Mode
+                                {activeSnapshot.name} {t('visualizer.snapshotMode')}
                             </span>
                         )}
                     </div>
@@ -73,7 +73,7 @@ const DesignVisualizer = ({ design, onGenerate, activeSnapIdx: propsActiveSnapId
                                 )}
                                 <div className="flex items-center gap-1">
                                     <span className="material-symbols-outlined text-sm">tune</span>
-                                    <span>{currentTuning && currentTuning !== 'Standard' ? currentTuning : 'Standard'}</span>
+                                    <span>{currentTuning && currentTuning !== 'Standard' ? currentTuning : t('visualizer.standardTuning')}</span>
                                 </div>
                             </div>
                         );
@@ -133,7 +133,7 @@ const DesignVisualizer = ({ design, onGenerate, activeSnapIdx: propsActiveSnapId
                     className="self-end px-4 py-2 bg-primary/10 hover:bg-primary/20 text-primary text-xs font-bold rounded-lg border border-primary/20 hover:border-primary/40 transition-all flex items-center gap-2 group shadow-sm"
                 >
                     <span className="material-symbols-outlined text-sm group-hover:animate-pulse">auto_fix_high</span>
-                    Build this Rig
+                    {t('visualizer.buildRig')}
                 </button>
             )}
         </div>

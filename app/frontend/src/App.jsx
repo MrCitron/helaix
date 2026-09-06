@@ -1,11 +1,13 @@
 import { useState, useEffect } from 'react';
-import { GxGetConfig } from '../wailsjs/go/main/App';
+import { GxGetConfig, GxGetCodexCLIStatus } from '../wailsjs/go/main/App';
 import MainScreen from './components/MainScreen';
 import Settings from './components/Settings';
 import Sidebar from './components/Sidebar';
 import DeleteConfirmationModal from './components/DeleteConfirmationModal';
+import { useI18n } from './i18n';
 
 function App() {
+    const { t } = useI18n();
     const [config, setConfig] = useState(null);
     const [view, setView] = useState('chat'); // 'chat' | 'settings'
     const [loading, setLoading] = useState(true);
@@ -40,7 +42,10 @@ function App() {
         async function loadConfig() {
             try {
                 const cfg = await GxGetConfig();
-                if (!cfg || !cfg.api_key) {
+                const codexStatus = cfg?.provider === 'codex_cli'
+                    ? await GxGetCodexCLIStatus(cfg.codex_cli_path)
+                    : null;
+                if (!cfg || (cfg.provider !== 'codex_cli' && !cfg.api_key) || (codexStatus && (!codexStatus.installed || !codexStatus.connected))) {
                     setView('settings');
                 }
                 setConfig(cfg);
@@ -69,9 +74,12 @@ function App() {
         return () => window.removeEventListener('resize', handleResize);
     }, []);
 
-    const handleConfigSave = (newConfig) => {
+    const handleConfigSave = async (newConfig) => {
         setConfig(newConfig);
-        if (view === 'settings' && newConfig.api_key) {
+        const codexStatus = newConfig.provider === 'codex_cli'
+            ? await GxGetCodexCLIStatus(newConfig.codex_cli_path)
+            : null;
+        if (view === 'settings' && (newConfig.api_key || codexStatus?.connected)) {
             setView('chat');
         }
     };
@@ -81,7 +89,7 @@ function App() {
         const newId = Date.now().toString();
         const newChat = {
             id: newId,
-            name: "New Chat",
+            name: t('newChatName'),
             messages: [],
             createdAt: new Date().toISOString()
         };
@@ -139,7 +147,7 @@ function App() {
     if (loading) return (
         <div className="bg-background-light dark:bg-background-dark min-h-screen text-slate-900 dark:text-white flex items-center justify-center font-display">
             <span className="material-symbols-outlined animate-spin text-primary mr-2">sync</span>
-            Loading...
+            {t('loading')}
         </div>
     );
 

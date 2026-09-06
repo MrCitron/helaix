@@ -1,9 +1,11 @@
 package main
 
 import (
+	"HelAIx/pkg/codexcli"
 	"HelAIx/pkg/config"
 	"HelAIx/pkg/gemini"
 	"HelAIx/pkg/helix"
+	"HelAIx/pkg/provider"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -50,33 +52,42 @@ func (a *App) GxSaveConfig(cfg config.AppConfig) string {
 // GxChatSoundEngineer calls the Sound Engineer Agent with history
 func (a *App) GxChatSoundEngineer(history []gemini.ChatMessage) (*gemini.RigDescription, error) {
 	cfg := a.config.Get()
-	if cfg.ApiKey == "" {
-		return nil, fmt.Errorf("API Key is missing")
-	}
-
-	client, err := gemini.NewClient(a.ctx, cfg.ApiKey, cfg.Model)
+	service, err := a.providerForConfig(cfg)
 	if err != nil {
-		return nil, fmt.Errorf("failed to create AI client: %v", err)
+		return nil, err
 	}
-	defer client.Close()
-
-	return client.ChatSoundEngineer(a.ctx, history, cfg.VariaxHardwareModel)
+	return service.Design(a.ctx, history, cfg.VariaxHardwareModel)
 }
 
 // GxChatPresetEngineer calls the Preset Engineer Agent with history and baseline rig
 func (a *App) GxChatPresetEngineer(rig gemini.RigDescription, presetName string, history []gemini.ChatMessage) (*helix.Preset, error) {
 	cfg := a.config.Get()
-	if cfg.ApiKey == "" {
-		return nil, fmt.Errorf("API Key is missing")
-	}
-
-	client, err := gemini.NewClient(a.ctx, cfg.ApiKey, cfg.Model)
+	service, err := a.providerForConfig(cfg)
 	if err != nil {
-		return nil, fmt.Errorf("failed to create AI client: %v", err)
+		return nil, err
 	}
-	defer client.Close()
+	return service.Build(a.ctx, rig, presetName, history, cfg.HardwareTarget, cfg.DefaultExpPedal, cfg.VariaxEnabled, cfg.VariaxHardwareModel)
+}
 
-	return client.ChatPresetEngineer(a.ctx, &rig, presetName, history, cfg.HardwareTarget, cfg.DefaultExpPedal, cfg.VariaxEnabled, cfg.VariaxHardwareModel)
+func (a *App) providerForConfig(cfg config.AppConfig) (provider.Service, error) {
+	switch config.NormalizeProvider(cfg.Provider) {
+	case provider.Gemini:
+		return provider.NewGemini(cfg.ApiKey, cfg.Model)
+	case provider.CodexCLI:
+		return codexcli.New(cfg.CodexCLIPath, cfg.Model)
+	default:
+		return nil, fmt.Errorf("unsupported AI provider %q", cfg.Provider)
+	}
+}
+
+// GxGetCodexCLIStatus reports local Codex CLI installation, capabilities, and login method.
+func (a *App) GxGetCodexCLIStatus(path string) provider.Status {
+	return codexcli.Status(path)
+}
+
+// GxTestCodexCLI sends a minimal request through the locally logged-in Codex CLI.
+func (a *App) GxTestCodexCLI(path, model string) (string, error) {
+	return codexcli.TestConnection(a.ctx, path, model)
 }
 
 // GxSaveFile saves the preset to the disk and returns the full path

@@ -153,7 +153,7 @@ function PresetVisualizer({ preset, design, compact = false, activeSnapIdx: prop
                         <h3 className="text-text-muted uppercase text-[10px] font-bold tracking-[0.2em] opacity-50">{t('chat.helixChain')}</h3>
                         {activeSnapshot && (
                             <span className="text-primary text-[9px] font-black uppercase tracking-tighter">
-                                Snapshot: {activeSnapshot.name}
+                                {t('visualizer.snapshot')}: {activeSnapshot.name}
                             </span>
                         )}
                     </div>
@@ -168,7 +168,7 @@ function PresetVisualizer({ preset, design, compact = false, activeSnapIdx: prop
             <details className="group pt-1">
                 <summary className="cursor-pointer text-text-muted hover:text-white text-[10px] uppercase font-bold tracking-widest list-none flex items-center justify-center gap-1 transition-colors opacity-40 hover:opacity-100">
                     <span className="material-symbols-outlined text-[14px] transition-transform group-open:rotate-90">chevron_right</span>
-                    Inspect JSON
+                    {t('visualizer.inspectJson')}
                 </summary>
                 <div className="mt-2 bg-[#0b1011] p-3 rounded-lg border border-[#283639] overflow-hidden shadow-inner">
                     <pre className="text-[10px] text-[#9db4b9] font-mono overflow-auto max-h-48 scrollbar-hide selection:bg-primary/20">
