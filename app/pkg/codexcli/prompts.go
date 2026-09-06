@@ -20,6 +20,10 @@ func presetPrompt(rig gemini.RigDescription, history []gemini.ChatMessage, hardw
 	if err != nil {
 		return "", err
 	}
+	recommendedPlan, err := gemini.RecommendedCandidatePlanForRig(rig, gemini.IsDualDSPHardware(hardware))
+	if err != nil {
+		return "", err
+	}
 	rigJSON, err := json.Marshal(rig)
 	if err != nil {
 		return "", err
@@ -30,6 +34,7 @@ func presetPrompt(rig gemini.RigDescription, history []gemini.ChatMessage, hardw
 	}
 	return fmt.Sprintf(`You are HelAIx's Line 6 Helix preset engineer. Map every non-Variax component in this rig to an exact model_name from that component's top-ranked allowed candidates below. Return only JSON conforming to the supplied schema.
 Hardware: %s. %s Never invent a model identifier. Keep stable choices from conversation unless the user requested a change. Variax is a global input and MUST NOT appear in blocks. Reverb Decay/VerbDecay must not exceed 0.7.
+Treat the recommended DSP-safe plan as a complete, validated combination: copy every name, model_name, and path tuple exactly unless the user explicitly asks to change that component. Do not substitute one model or move one path independently. Return every non-Variax component exactly once in rig order; once the dual-DSP chain moves to path 1, do not move later blocks back to path 0.
 
 Rig: %s
 
@@ -37,7 +42,9 @@ Conversation history:
 %s
 
 	Top-ranked Helix models by component:
-	%s`, hardware, paths, rigJSON, historyJSON(history), catalog), nil
+	%s
+
+	%s`, hardware, paths, rigJSON, historyJSON(history), catalog, recommendedPlan), nil
 }
 
 func historyJSON(history []gemini.ChatMessage) string {

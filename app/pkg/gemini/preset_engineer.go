@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"io"
 	"math"
+	"sort"
 	"strings"
 
 	"google.golang.org/genai"
@@ -24,6 +25,25 @@ type builderResponse struct {
 	Blocks []builderBlock `json:"blocks"`
 }
 
+const plannerBeamWidth = 256
+
+type rankedComponentCandidates struct {
+	component  RigComponent
+	candidates []helix.CatalogEntry
+}
+
+type plannedBlock struct {
+	name      string
+	modelName string
+	path      int
+	dsp       float64
+}
+
+type recommendedCandidatePlan struct {
+	blocks []plannedBlock
+	dsp    [2]float64
+}
+
 // ChatPresetEngineer takes the abstract rig and maps it to specific Helix Blocks, or refines an existing implementation
 func (c *Client) ChatPresetEngineer(ctx context.Context, rig *RigDescription, presetName string, history []ChatMessage, hardware string, defaultExp int, variaxEnabled bool, hardwareModel string) (*helix.Preset, error) {
 	// 1. Prepare only the models that can implement each proposed component.
@@ -33,7 +53,11 @@ func (c *Client) ChatPresetEngineer(ctx context.Context, rig *RigDescription, pr
 	}
 
 	// 2. Hardware Capabilities
-	isDualDSP := strings.Contains(hardware, "Floor") || strings.Contains(hardware, "LT") || strings.Contains(hardware, "Rack")
+	isDualDSP := IsDualDSPHardware(hardware)
+	recommendedPlan, err := RecommendedCandidatePlanForRig(*rig, isDualDSP)
+	if err != nil {
+		return nil, err
+	}
 	dspCapacity := "1 path of 100%"
 	if isDualDSP {
 		dspCapacity = "2 paths (Path 1 and Path 2), each with its own 100% DSP chip. Total 200%."
@@ -49,6 +73,13 @@ func (c *Client) ChatPresetEngineer(ctx context.Context, rig *RigDescription, pr
 	
 	TOP-RANKED ALLOWED MODELS BY COMPONENT:
 	%s
+
+	%s
+
+	PLANNER RULES:
+	- The recommended plan is a validated combination, not independent suggestions. Copy every name, model_name, and path tuple exactly unless the user explicitly asks to change that component.
+	- Never substitute a model or move a block to another path while retaining the rest of the plan without rechecking the full chain against the allowed candidates and DSP budget.
+	- Return every non-Variax component exactly once, in the rig's chain order. When a dual-DSP plan moves to path 1, do not place later chain blocks back on path 0.
 	
 	CONVERSATION LOGIC:
 	- If the user provides feedback, adjust the technical implementation.
@@ -58,8 +89,8 @@ func (c *Client) ChatPresetEngineer(ctx context.Context, rig *RigDescription, pr
 	DSP MANAGEMENT:
 	- CRITICAL: Physical Helix Units (Floor/Rack) have strict DSP limits.
 	- Each path (Path 1 and Path 2) has its own 100%% budget.
-	- YOU MUST aim for a MAXIMUM of 60-65%% per path to ensure hardware stability. 
-	- If your estimated DSP sum for Path 1 exceeds 60%%, you MUST move the remaining blocks to Path 2 ("path": 1).
+	- The recommended plan is already within the deterministic 65%% per-path budget. Do not estimate or improvise an alternative path allocation.
+	- If user feedback requires a different model, select only an allowed candidate for that component and keep each path at or below 65%%.
 	- High-end Amps, Cabs, and IRs take ~30-40%% each. Poly-FX and Stereo Reverbs/Delays take ~15-25%%.
 	- Path 1 is "path": 0, Path 2 is "path": 1.
 	- If the hardware has only 1 path, use "path": 0 for everything.
@@ -77,6 +108,7 @@ func (c *Client) ChatPresetEngineer(ctx context.Context, rig *RigDescription, pr
 	- Return ONLY a JSON object with a "blocks" array.
 	- "name" MUST match exactly the "name" of the component from the Sound Engineer proposal.
 	- "model_name" must match a candidate listed for that exact component; candidates are already ranked for the requested tone.
+	- Use the recommended DSP-safe plan as the exact baseline unless user feedback explicitly requires a change.
 	- "path" must be 0 (Path 1) or 1 (Path 2).
 	
 	OUTPUT FORMAT:
@@ -85,7 +117,7 @@ func (c *Client) ChatPresetEngineer(ctx context.Context, rig *RigDescription, pr
 			{ "name": "Tube Screamer", "model_name": "Scream 808", "path": 0, "params": { "Gain": 0.5 } }
 		]
 	}
-	`, hardware, dspCapacity, availableModels)
+	`, hardware, dspCapacity, availableModels, recommendedPlan)
 
 	// Truncate prompt if needed (though Gemini 1.5 Handle this well)
 	if len(sysPrompt) > 100000 {
@@ -135,23 +167,39 @@ func (c *Client) ChatPresetEngineer(ctx context.Context, rig *RigDescription, pr
 	}
 
 	jsonText := resp.Candidates[0].Content.Parts[0].Text
-	return BuildPresetFromJSON(jsonText, rig, presetName, hardware, defaultExp, variaxEnabled, hardwareModel)
+	preset, buildErr := BuildPresetFromJSON(jsonText, rig, presetName, hardware, defaultExp, variaxEnabled, hardwareModel)
+	if buildErr == nil {
+		return preset, nil
+	}
+
+	contents = append(contents,
+		&genai.Content{Role: "model", Parts: []*genai.Part{{Text: jsonText}}},
+		&genai.Content{Role: "user", Parts: []*genai.Part{{Text: BuilderCorrectionInstruction(buildErr)}}},
+	)
+	retry, err := c.client.Models.GenerateContent(ctx, c.ModelName, contents, config)
+	if err != nil {
+		return nil, fmt.Errorf("preset engineer retry failed: %v", err)
+	}
+	if len(retry.Candidates) == 0 || len(retry.Candidates[0].Content.Parts) == 0 {
+		return nil, fmt.Errorf("empty retry response from Preset Engineer Agent")
+	}
+	preset, retryErr := BuildPresetFromJSON(retry.Candidates[0].Content.Parts[0].Text, rig, presetName, hardware, defaultExp, variaxEnabled, hardwareModel)
+	if retryErr != nil {
+		return nil, fmt.Errorf("preset engineer response remained invalid after retry: %w", retryErr)
+	}
+	return preset, nil
 }
 
 // CandidateCatalogForRig formats the highest-ranked compatible Helix models for each component.
 func CandidateCatalogForRig(rig RigDescription) (string, error) {
+	groups, err := rankedCandidateGroups(rig)
+	if err != nil {
+		return "", err
+	}
 	var catalog strings.Builder
-	for _, component := range rig.Chain {
-		if component.Type == "variax" {
-			continue
-		}
-		intent := strings.Join([]string{component.Name, component.Description, component.Settings}, " ")
-		candidates := helix.RankedCandidatesForComponent(component.Type, intent, helix.PromptCandidateLimit)
-		if len(candidates) == 0 {
-			return "", fmt.Errorf("no Helix candidates available for component %q of type %q", component.Name, component.Type)
-		}
-		catalog.WriteString(fmt.Sprintf("%s [%s, ranked by tone intent]:\n", component.Name, component.Type))
-		for _, candidate := range candidates {
+	for _, group := range groups {
+		catalog.WriteString(fmt.Sprintf("%s [%s, ranked by tone intent]:\n", group.component.Name, group.component.Type))
+		for _, candidate := range group.candidates {
 			name := candidate.Name
 			if name == "" {
 				name = candidate.InternalName
@@ -163,6 +211,118 @@ func CandidateCatalogForRig(rig RigDescription) (string, error) {
 	return catalog.String(), nil
 }
 
+// IsDualDSPHardware reports whether the selected Helix hardware supports two DSP paths.
+func IsDualDSPHardware(hardware string) bool {
+	return strings.Contains(hardware, "Floor") || strings.Contains(hardware, "LT") || strings.Contains(hardware, "Rack")
+}
+
+// RecommendedCandidatePlanForRig returns a DSP-safe, tone-ranked starting plan for builders.
+func RecommendedCandidatePlanForRig(rig RigDescription, isDualDSP bool) (string, error) {
+	plan, err := recommendedPlanForRig(rig, isDualDSP)
+	if err != nil {
+		return "", err
+	}
+	var text strings.Builder
+	text.WriteString("RECOMMENDED DSP-SAFE STARTING PLAN:\n")
+	for _, block := range plan.blocks {
+		text.WriteString(fmt.Sprintf("- %s -> %s (path %d, DSP %.1f%%)\n", block.name, block.modelName, block.path, block.dsp))
+	}
+	text.WriteString(fmt.Sprintf("Path 0 total: %.1f%% DSP\n", plan.dsp[0]))
+	if isDualDSP {
+		text.WriteString(fmt.Sprintf("Path 1 total: %.1f%% DSP\n", plan.dsp[1]))
+	}
+	return text.String(), nil
+}
+
+// BuilderCorrectionInstruction tells a provider how to replace a rejected block mapping.
+func BuilderCorrectionInstruction(validationErr error) string {
+	return fmt.Sprintf(`Your previous JSON was rejected by deterministic Helix validation: %v.
+Return a complete replacement JSON object only, with a full "blocks" array; do not return a patch, explanation, or extra keys.
+- Include every non-Variax rig component exactly once and in chain order.
+- Use only the exact allowed model names and the recommended DSP-safe model/path tuples unless the requested change requires a different allowed candidate.
+- Keep each path at or below 65%% DSP. Once the chain moves to path 1, do not move later blocks back to path 0.`, validationErr)
+}
+
+func rankedCandidateGroups(rig RigDescription) ([]rankedComponentCandidates, error) {
+	groups := make([]rankedComponentCandidates, 0, len(rig.Chain))
+	for _, component := range rig.Chain {
+		if component.Type == "variax" {
+			continue
+		}
+		intent := strings.Join([]string{component.Name, component.Description, component.Settings}, " ")
+		candidates := helix.RankedCandidatesForComponent(component.Type, intent, helix.PromptCandidateLimit)
+		if len(candidates) == 0 {
+			return nil, fmt.Errorf("no Helix candidates available for component %q of type %q", component.Name, component.Type)
+		}
+		groups = append(groups, rankedComponentCandidates{component: component, candidates: candidates})
+	}
+	return groups, nil
+}
+
+func recommendedPlanForRig(rig RigDescription, isDualDSP bool) (recommendedCandidatePlan, error) {
+	groups, err := rankedCandidateGroups(rig)
+	if err != nil {
+		return recommendedCandidatePlan{}, err
+	}
+	return recommendedPlanForGroups(groups, isDualDSP)
+}
+
+func recommendedPlanForGroups(groups []rankedComponentCandidates, isDualDSP bool) (recommendedCandidatePlan, error) {
+	type planState struct {
+		plan      recommendedCandidatePlan
+		rankScore int
+		path      int
+	}
+	states := []planState{{}}
+	for _, group := range groups {
+		next := make([]planState, 0, len(states)*len(group.candidates)*2)
+		for _, state := range states {
+			for rank, candidate := range group.candidates {
+				cost := helix.EffectiveDSPMono(candidate)
+				for _, path := range plannerPaths(state.path, isDualDSP) {
+					if state.plan.dsp[path]+cost > helix.SafeDSPPerPath {
+						continue
+					}
+					modelName := candidate.Name
+					if modelName == "" {
+						modelName = candidate.InternalName
+					}
+					plan := state.plan
+					plan.blocks = append(append([]plannedBlock(nil), state.plan.blocks...), plannedBlock{name: group.component.Name, modelName: modelName, path: path, dsp: cost})
+					plan.dsp[path] += cost
+					next = append(next, planState{plan: plan, rankScore: state.rankScore + rank, path: path})
+				}
+			}
+		}
+		if len(next) == 0 {
+			return recommendedCandidatePlan{}, fmt.Errorf("no DSP-safe candidate plan for component %q", group.component.Name)
+		}
+		sort.Slice(next, func(i, j int) bool {
+			if next[i].rankScore != next[j].rankScore {
+				return next[i].rankScore < next[j].rankScore
+			}
+			leftDSP := next[i].plan.dsp[0] + next[i].plan.dsp[1]
+			rightDSP := next[j].plan.dsp[0] + next[j].plan.dsp[1]
+			if leftDSP != rightDSP {
+				return leftDSP < rightDSP
+			}
+			return next[i].path < next[j].path
+		})
+		if len(next) > plannerBeamWidth {
+			next = next[:plannerBeamWidth]
+		}
+		states = next
+	}
+	return states[0].plan, nil
+}
+
+func plannerPaths(currentPath int, isDualDSP bool) []int {
+	if !isDualDSP || currentPath == 1 {
+		return []int{currentPath}
+	}
+	return []int{0, 1}
+}
+
 // BuildPresetFromJSON validates a provider's block mapping and creates an exportable preset.
 func BuildPresetFromJSON(jsonText string, rig *RigDescription, presetName string, hardware string, defaultExp int, variaxEnabled bool, hardwareModel string) (*helix.Preset, error) {
 	helix.DB.EnsureLoaded()
@@ -172,7 +332,7 @@ func BuildPresetFromJSON(jsonText string, rig *RigDescription, presetName string
 	if err := validateRigDescription(rig); err != nil {
 		return nil, fmt.Errorf("invalid rig description: %w", err)
 	}
-	isDualDSP := strings.Contains(hardware, "Floor") || strings.Contains(hardware, "LT") || strings.Contains(hardware, "Rack")
+	isDualDSP := IsDualDSPHardware(hardware)
 
 	// 4. PRE-FLIGHT VARIAX SYNC: Ensure top-level fields are sync'd with Chain components
 	// (Agents are more reliable at updating the Chain/Params than top-level technical fields)

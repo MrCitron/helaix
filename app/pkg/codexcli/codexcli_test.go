@@ -51,25 +51,64 @@ func TestClientRejectsInvalidStructuredResponse(t *testing.T) {
 
 func TestBuildRejectsUnknownHelixModel(t *testing.T) {
 	path := fakeCodex(t)
-	t.Setenv("FAKE_RESPONSE", `{"blocks":[{"name":"Drive","model_name":"Invented Helix Model","path":0,"params":{}}]}`)
+	t.Setenv("FAKE_RESPONSE", invalidBuildResponse())
+	callsPath := filepath.Join(t.TempDir(), "calls")
+	t.Setenv("FAKE_CALLS_PATH", callsPath)
 	client, err := New(path, "")
 	if err != nil {
 		t.Fatalf("New() error = %v", err)
 	}
-	rig := gemini.RigDescription{
-		SuggestedName: "TEST RIG",
-		Explanation:   "A test rig.",
-		GuitarModel:   "Fender Stratocaster",
-		Tuning:        "Standard",
-		Chain: []gemini.RigComponent{{
-			Type: "pedal",
-			Name: "Drive",
-		}},
-	}
-	_, err = client.Build(context.Background(), rig, "TEST RIG", nil, "Helix Floor", 1, false, "Standard")
+	_, err = client.Build(context.Background(), testBuildRig(), "TEST RIG", nil, "Helix Floor", 1, false, "Standard")
 	if !errors.Is(err, ErrInvalidResponse) {
 		t.Fatalf("Build() error = %v, want ErrInvalidResponse", err)
 	}
+	assertCodexCalls(t, callsPath, 2)
+}
+
+func TestBuildRetriesInvalidHelixResponse(t *testing.T) {
+	path := fakeCodex(t)
+	t.Setenv("FAKE_RESPONSE", invalidBuildResponse())
+	t.Setenv("FAKE_RETRY_RESPONSE", validBuildResponse())
+	callsPath := filepath.Join(t.TempDir(), "calls")
+	t.Setenv("FAKE_CALLS_PATH", callsPath)
+	promptPath := filepath.Join(t.TempDir(), "prompt")
+	t.Setenv("FAKE_PROMPT_PATH", promptPath)
+	client, err := New(path, "")
+	if err != nil {
+		t.Fatalf("New() error = %v", err)
+	}
+	preset, err := client.Build(context.Background(), testBuildRig(), "TEST RIG", nil, "Helix Floor", 1, false, "Standard")
+	if err != nil {
+		t.Fatalf("Build() error = %v", err)
+	}
+	if preset == nil {
+		t.Fatal("Build() returned a nil preset")
+	}
+	assertCodexCalls(t, callsPath, 2)
+	prompt, err := os.ReadFile(promptPath)
+	if err != nil {
+		t.Fatalf("read retry prompt: %v", err)
+	}
+	for _, want := range []string{"BEGIN REJECTED JSON", "Invented Helix Model", "complete replacement JSON object"} {
+		if !strings.Contains(string(prompt), want) {
+			t.Fatalf("retry prompt does not include %q", want)
+		}
+	}
+}
+
+func TestBuildDoesNotRetryValidHelixResponse(t *testing.T) {
+	path := fakeCodex(t)
+	t.Setenv("FAKE_RESPONSE", validBuildResponse())
+	callsPath := filepath.Join(t.TempDir(), "calls")
+	t.Setenv("FAKE_CALLS_PATH", callsPath)
+	client, err := New(path, "")
+	if err != nil {
+		t.Fatalf("New() error = %v", err)
+	}
+	if _, err := client.Build(context.Background(), testBuildRig(), "TEST RIG", nil, "Helix Floor", 1, false, "Standard"); err != nil {
+		t.Fatalf("Build() error = %v", err)
+	}
+	assertCodexCalls(t, callsPath, 1)
 }
 
 func TestPresetPromptListsOnlyComponentCandidates(t *testing.T) {
@@ -84,6 +123,12 @@ func TestPresetPromptListsOnlyComponentCandidates(t *testing.T) {
 	}
 	if strings.Contains(prompt, "Scream 808") {
 		t.Fatal("presetPrompt() included a pedal model for an amp-only rig")
+	}
+	if !strings.Contains(prompt, "RECOMMENDED DSP-SAFE STARTING PLAN:") {
+		t.Fatal("presetPrompt() does not include the DSP-safe recommendation")
+	}
+	if !strings.Contains(prompt, "complete, validated combination") {
+		t.Fatal("presetPrompt() does not require the planner tuple to be preserved")
 	}
 }
 
@@ -195,12 +240,18 @@ if [ "$1" = "exec" ]; then
   if [ "$FAKE_MODE" = "sleep" ]; then sleep 2; fi
   if [ -n "$FAKE_ARGS_PATH" ]; then printf '%s\n' "$@" > "$FAKE_ARGS_PATH"; fi
   if [ -n "$FAKE_ENV_PATH" ]; then env > "$FAKE_ENV_PATH"; fi
+  if [ -n "$FAKE_PROMPT_PATH" ]; then cat > "$FAKE_PROMPT_PATH"; fi
   previous=""
   for arg in "$@"; do
     if [ "$previous" = "-o" ]; then output="$arg"; break; fi
     previous="$arg"
   done
-  printf '%s' "$FAKE_RESPONSE" > "$output"
+  response="$FAKE_RESPONSE"
+  if [ -n "$FAKE_CALLS_PATH" ]; then
+    if [ -s "$FAKE_CALLS_PATH" ] && [ -n "$FAKE_RETRY_RESPONSE" ]; then response="$FAKE_RETRY_RESPONSE"; fi
+    printf x >> "$FAKE_CALLS_PATH"
+  fi
+  printf '%s' "$response" > "$output"
   exit 0
 fi
 exit 1
@@ -209,4 +260,37 @@ exit 1
 		t.Fatalf("write fake Codex: %v", err)
 	}
 	return path
+}
+
+func testBuildRig() gemini.RigDescription {
+	return gemini.RigDescription{
+		SuggestedName: "TEST RIG",
+		Explanation:   "A test rig.",
+		GuitarModel:   "Fender Stratocaster",
+		Tuning:        "Standard",
+		Chain: []gemini.RigComponent{
+			{Type: "pedal", Name: "Drive", Description: "Overdrive", Settings: "Low gain"},
+			{Type: "amp", Name: "Amp", Description: "Clean amp", Settings: "Clean"},
+			{Type: "cab", Name: "Cab", Description: "1x12 cabinet", Settings: "1x12"},
+		},
+	}
+}
+
+func invalidBuildResponse() string {
+	return `{"blocks":[{"name":"Drive","model_name":"Invented Helix Model","path":0,"params":{}},{"name":"Amp","model_name":"US Deluxe Nrm","path":0,"params":{}},{"name":"Cab","model_name":"1x12 US Deluxe","path":0,"params":{}}]}`
+}
+
+func validBuildResponse() string {
+	return `{"blocks":[{"name":"Drive","model_name":"Scream 808","path":0,"params":{}},{"name":"Amp","model_name":"US Deluxe Nrm","path":0,"params":{}},{"name":"Cab","model_name":"1x12 US Deluxe","path":0,"params":{}}]}`
+}
+
+func assertCodexCalls(t *testing.T, path string, want int) {
+	t.Helper()
+	calls, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatalf("read call count: %v", err)
+	}
+	if len(calls) != want {
+		t.Fatalf("Codex calls = %d, want %d", len(calls), want)
+	}
 }

@@ -136,8 +136,17 @@ func (c *Client) Build(ctx context.Context, rig gemini.RigDescription, presetNam
 		return nil, err
 	}
 	preset, err := gemini.BuildPresetFromJSON(output, &rig, presetName, hardware, defaultExp, variaxEnabled, variaxHardwareModel)
-	if err != nil {
-		return nil, fmt.Errorf("%w: %v", ErrInvalidResponse, err)
+	if err == nil {
+		return preset, nil
+	}
+	retryPrompt := fmt.Sprintf("%s\n\nBEGIN REJECTED JSON\n%s\nEND REJECTED JSON\n\n%s", prompt, output, gemini.BuilderCorrectionInstruction(err))
+	retryOutput, retryErr := c.run(ctx, retryPrompt, blocksSchema())
+	if retryErr != nil {
+		return nil, retryErr
+	}
+	preset, retryErr = gemini.BuildPresetFromJSON(retryOutput, &rig, presetName, hardware, defaultExp, variaxEnabled, variaxHardwareModel)
+	if retryErr != nil {
+		return nil, fmt.Errorf("%w: response remained invalid after retry: %v", ErrInvalidResponse, retryErr)
 	}
 	return preset, nil
 }
