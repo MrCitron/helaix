@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"math"
 	"strings"
 
 	"google.golang.org/genai"
@@ -260,21 +261,17 @@ func BuildPresetFromJSON(jsonText string, rig *RigDescription, presetName string
 		}
 
 		entry, found := helix.DB.FindByRealName(b.ModelName)
-		var internalID string
-		var defaultData map[string]interface{}
-
-		if found {
-			internalID = entry.InternalName
-			defaultData = entry.Data["Defaults"].(map[string]interface{})
-		} else {
-			entryID, foundID := helix.DB.FindByID(b.ModelName)
-			if foundID {
-				internalID = entryID.InternalName
-				defaultData = entryID.Data["Defaults"].(map[string]interface{})
-			} else {
-				continue
-			}
+		if !found {
+			entry, found = helix.DB.FindByID(b.ModelName)
 		}
+		if !found {
+			return nil, fmt.Errorf("model %q disappeared from the Helix catalog", b.ModelName)
+		}
+		defaultData, ok := entry.Data["Defaults"].(map[string]interface{})
+		if !ok {
+			return nil, fmt.Errorf("model %q has invalid defaults", b.ModelName)
+		}
+		internalID := entry.InternalName
 
 		finalParams := make(map[string]interface{})
 		for k, v := range defaultData {
@@ -322,40 +319,9 @@ func BuildPresetFromJSON(jsonText string, rig *RigDescription, presetName string
 		}
 
 		for pName, pVal := range b.Params {
-			pVal = sanitizeParam(internalID, pName, pVal)
-			key := pName
-
-			// Heuristic for matching generic names to technical names
-			if _, exists := defaultData[key]; !exists {
-				lowName := strings.ToLower(pName)
-				found := false
-				alternatives := []string{}
-				if lowName == "gain" {
-					alternatives = []string{"Drive", "LeadGain", "Lead Drive", "ChVol", "Master"}
-				} else if lowName == "drive" {
-					alternatives = []string{"Gain", "LeadDrive", "Lead Gain", "Overdrive"}
-				} else if lowName == "volume" || lowName == "vol" {
-					alternatives = []string{"ChVol", "Master", "Level"}
-				} else if lowName == "mids" {
-					alternatives = []string{"Middle", "Mid"}
-				}
-
-				for _, alt := range alternatives {
-					if _, exists := defaultData[alt]; exists {
-						key = alt
-						found = true
-						break
-					}
-				}
-
-				if !found {
-					for actualKey := range defaultData {
-						if strings.EqualFold(actualKey, pName) {
-							key = actualKey
-							break
-						}
-					}
-				}
+			key, err := resolveParameterName(entry, pName, false)
+			if err != nil {
+				return nil, fmt.Errorf("block %q: %w", b.Name, err)
 			}
 			finalParams[key] = pVal
 		}
@@ -444,45 +410,9 @@ func BuildPresetFromJSON(jsonText string, rig *RigDescription, presetName string
 									snapshot := rig.Snapshots[s]
 									if overrides, ok := snapshot.Params[b.Name].(map[string]interface{}); ok {
 										for pName, pVal := range overrides {
-											// Map parameter name to technical Helix key
-											pKey := pName
-											// ... (pKey resolution logic follows)
-
-											// 1. Try exact match or common aliases
-											if _, exists := defaultData[pKey]; !exists {
-												// Heuristic for matching "Gain" or "Drive" to specific amp parameters
-												lowName := strings.ToLower(pName)
-												foundMatch := false
-
-												// List of alternatives to try
-												alternatives := []string{}
-												if lowName == "gain" {
-													alternatives = []string{"Drive", "LeadGain", "Lead Drive", "ChVol", "Master"}
-												} else if lowName == "drive" {
-													alternatives = []string{"Gain", "LeadDrive", "Lead Gain", "Overdrive"}
-												} else if lowName == "volume" || lowName == "vol" {
-													alternatives = []string{"ChVol", "Master", "Level"}
-												} else if lowName == "mids" {
-													alternatives = []string{"Middle", "Mid"}
-												}
-
-												for _, alt := range alternatives {
-													if _, exists := defaultData[alt]; exists {
-														pKey = alt
-														foundMatch = true
-														break
-													}
-												}
-
-												// 2. If no alias found, try a case-insensitive lookup
-												if !foundMatch {
-													for actualKey := range defaultData {
-														if strings.EqualFold(actualKey, pName) {
-															pKey = actualKey
-															break
-														}
-													}
-												}
+											pKey, err := resolveParameterName(entry, pName, true)
+											if err != nil {
+												return nil, fmt.Errorf("snapshot %q block %q: %w", snapshot.Name, b.Name, err)
 											}
 
 											// OPTIMIZATION: Check if this parameter actually varies across any snapshot or from baseline
@@ -491,13 +421,18 @@ func BuildPresetFromJSON(jsonText string, rig *RigDescription, presetName string
 											baselineVal := finalParams[pKey]
 											for _, otherSnap := range rig.Snapshots {
 												if otherOverrides, ok := otherSnap.Params[b.Name].(map[string]interface{}); ok {
-													if otherVal, ok := otherOverrides[pName]; ok {
-														// Sanitize otherVal to match the scale of baselineVal
-														sOtherVal := sanitizeParam(internalID, pKey, otherVal)
-														if sOtherVal != baselineVal {
+													for otherName, otherVal := range otherOverrides {
+														otherKey, err := resolveParameterName(entry, otherName, true)
+														if err != nil {
+															return nil, fmt.Errorf("snapshot %q block %q: %w", otherSnap.Name, b.Name, err)
+														}
+														if otherKey == pKey && otherVal != baselineVal {
 															shouldControl = true
 															break
 														}
+													}
+													if shouldControl {
+														break
 													}
 												}
 											}
@@ -973,6 +908,7 @@ func validateBuilderResponse(response builderResponse, rig *RigDescription, isDu
 	}
 
 	seen := make(map[string]struct{}, len(response.Blocks))
+	blockModels := make(map[string]helix.CatalogEntry, len(response.Blocks))
 	pathDSP := [2]float64{}
 	for _, block := range response.Blocks {
 		if block.Name == "" || block.ModelName == "" {
@@ -1001,13 +937,24 @@ func validateBuilderResponse(response builderResponse, rig *RigDescription, isDu
 			return fmt.Errorf("block %q uses model %q incompatible with component type %q", block.Name, block.ModelName, componentType)
 		}
 		pathDSP[block.Path] += helix.EffectiveDSPMono(entry)
-		defaults, ok := entry.Data["Defaults"].(map[string]interface{})
-		if !ok {
-			return fmt.Errorf("model %q has invalid defaults", block.ModelName)
+		if err := validateParameterMap(entry, block.Params, false); err != nil {
+			return fmt.Errorf("block %q: %w", block.Name, err)
 		}
-		for parameter := range block.Params {
-			if !isSupportedParameter(defaults, parameter) {
-				return fmt.Errorf("block %q has unsupported parameter %q", block.Name, parameter)
+		blockModels[block.Name] = entry
+	}
+	for _, snapshot := range rig.Snapshots {
+		for blockName, rawOverrides := range snapshot.Params {
+			entry, mappable := blockModels[blockName]
+			if !mappable {
+				// Variax overrides are handled as global input settings, not block parameters.
+				continue
+			}
+			overrides, ok := rawOverrides.(map[string]interface{})
+			if !ok {
+				return fmt.Errorf("snapshot %q block %q parameters must be an object", snapshot.Name, blockName)
+			}
+			if err := validateParameterMap(entry, overrides, true); err != nil {
+				return fmt.Errorf("snapshot %q block %q: %w", snapshot.Name, blockName, err)
 			}
 		}
 	}
@@ -1020,81 +967,135 @@ func validateBuilderResponse(response builderResponse, rig *RigDescription, isDu
 	return nil
 }
 
-func isSupportedParameter(defaults map[string]interface{}, name string) bool {
-	if _, ok := defaults[name]; ok {
-		return true
-	}
-	for actual := range defaults {
-		if strings.EqualFold(actual, name) {
-			return true
-		}
-	}
-
-	aliases := map[string][]string{
-		"gain":   {"Drive", "LeadGain", "Lead Drive", "ChVol", "Master"},
-		"drive":  {"Gain", "LeadDrive", "Lead Gain", "Overdrive"},
-		"volume": {"ChVol", "Master", "Level"},
-		"vol":    {"ChVol", "Master", "Level"},
-		"mids":   {"Middle", "Mid"},
-	}
-	for _, alias := range aliases[strings.ToLower(name)] {
-		if _, ok := defaults[alias]; ok {
-			return true
-		}
-	}
-	return false
+var parameterAliases = map[string][]string{
+	"gain":   {"Drive", "LeadGain", "Lead Drive", "ChVol", "Master"},
+	"drive":  {"Gain", "LeadDrive", "Lead Gain", "Overdrive"},
+	"volume": {"ChVol", "Master", "Level"},
+	"vol":    {"ChVol", "Master", "Level"},
+	"mids":   {"Middle", "Mid"},
 }
 
-func sanitizeParam(internalID, k string, v interface{}) interface{} {
-	val, isFloat := v.(float64)
-	if !isFloat {
-		return v
-	}
+func validateParameterMap(entry helix.CatalogEntry, values map[string]interface{}, snapshot bool) error {
+	return validateParameterMapWithSafety(entry, values, snapshot, true)
+}
 
-	lowK := strings.ToLower(k)
+func validateCatalogDefaultParameterMap(entry helix.CatalogEntry, values map[string]interface{}) error {
+	return validateParameterMapWithSafety(entry, values, false, false)
+}
 
-	// List of parameters that should be in 0.0-1.0 range internally (0-10 on knob)
-	isPercentageParam := strings.Contains(lowK, "gain") ||
-		strings.Contains(lowK, "drive") ||
-		strings.Contains(lowK, "bass") ||
-		strings.Contains(lowK, "mid") ||
-		strings.Contains(lowK, "treble") ||
-		strings.Contains(lowK, "presence") ||
-		strings.Contains(lowK, "chvol") ||
-		strings.Contains(lowK, "master") ||
-		strings.Contains(lowK, "level") ||
-		strings.Contains(lowK, "mix") ||
-		strings.Contains(lowK, "feedback") ||
-		strings.Contains(lowK, "fdbk") ||
-		strings.Contains(lowK, "pedal")
-
-	if isPercentageParam {
-		// Normalization: If the AI provides 3.5, it likely meant 0.35
-		if val > 1.0 {
-			val = val / 10.0
+func validateParameterMapWithSafety(entry helix.CatalogEntry, values map[string]interface{}, snapshot, enforceSafety bool) error {
+	for requestedName, value := range values {
+		name, err := resolveParameterName(entry, requestedName, snapshot)
+		if err != nil {
+			return err
 		}
-		// Hard Cap: Ensure we don't exceed 1.0 for these parameters
-		if val > 1.0 {
-			val = 1.0
-		}
-		v = val
-	}
-
-	// Reverb Decay Sanitization (Reverbs and Delays with Reverb tails)
-	isReverb := strings.HasPrefix(internalID, "HD2_Reverb") || strings.HasPrefix(internalID, "VIC_Reverb")
-	isDelay := strings.HasPrefix(internalID, "HD2_Delay") || strings.HasPrefix(internalID, "VIC_Delay")
-	if (isReverb && (lowK == "decay" || lowK == "verbdecay")) || (isDelay && lowK == "verbdecay") {
-		if val >= 0.7 {
-			return 0.7
+		if err := validateParameterValue(entry, name, value, enforceSafety); err != nil {
+			return err
 		}
 	}
+	return nil
+}
 
-	// Delay Feedback Sanitization
-	if isDelay && (lowK == "feedback" || lowK == "fdbk" || lowK == "bk") {
-		if val >= 0.75 {
-			return 0.75
+func resolveParameterName(entry helix.CatalogEntry, requestedName string, snapshot bool) (string, error) {
+	if strings.HasPrefix(requestedName, "@") {
+		return "", fmt.Errorf("parameter %q is reserved", requestedName)
+	}
+	defaults, ok := entry.Data["Defaults"].(map[string]interface{})
+	if !ok {
+		return "", fmt.Errorf("model %q has invalid defaults", entry.InternalName)
+	}
+	name := requestedName
+	if _, exists := defaults[name]; !exists {
+		found := false
+		for actualName := range defaults {
+			if strings.EqualFold(actualName, requestedName) {
+				name = actualName
+				found = true
+				break
+			}
+		}
+		if !found {
+			for _, alias := range parameterAliases[strings.ToLower(requestedName)] {
+				if _, exists := defaults[alias]; exists {
+					name = alias
+					found = true
+					break
+				}
+			}
+		}
+		if !found {
+			return "", fmt.Errorf("unsupported parameter %q", requestedName)
+		}
+	}
+	if snapshot && !isSnapshotControllable(entry, name) {
+		return "", fmt.Errorf("parameter %q cannot be controlled by snapshots", requestedName)
+	}
+	return name, nil
+}
+
+func validateParameterValue(entry helix.CatalogEntry, name string, value interface{}, enforceSafety bool) error {
+	defaults := entry.Data["Defaults"].(map[string]interface{})
+	expected := defaults[name]
+	switch expected.(type) {
+	case float64:
+		actual, ok := value.(float64)
+		if !ok {
+			return fmt.Errorf("parameter %q must be a number", name)
+		}
+		if math.IsNaN(actual) || math.IsInf(actual, 0) {
+			return fmt.Errorf("parameter %q must be finite", name)
+		}
+		min, max := parameterRange(entry, name, enforceSafety)
+		if actual < min || actual > max {
+			return fmt.Errorf("parameter %q value %.3f is outside the allowed range %.3f to %.3f", name, actual, min, max)
+		}
+	case bool:
+		if _, ok := value.(bool); !ok {
+			return fmt.Errorf("parameter %q must be a boolean", name)
+		}
+	case string:
+		if _, ok := value.(string); !ok {
+			return fmt.Errorf("parameter %q must be a string", name)
+		}
+	default:
+		return fmt.Errorf("parameter %q has unsupported catalog type %T", name, expected)
+	}
+	return nil
+}
+
+func isSnapshotControllable(entry helix.CatalogEntry, name string) bool {
+	controllers, ok := entry.Data["Controller_Dict"].(map[string]interface{})
+	if !ok {
+		return false
+	}
+	_, ok = controllers[name]
+	return ok
+}
+
+func parameterRange(entry helix.CatalogEntry, name string, enforceSafety bool) (float64, float64) {
+	min, max := math.Inf(-1), math.Inf(1)
+	if controllers, ok := entry.Data["Controller_Dict"].(map[string]interface{}); ok {
+		if controller, ok := controllers[name].(map[string]interface{}); ok {
+			if value, ok := controller["@min"].(float64); ok {
+				min = value
+			}
+			if value, ok := controller["@max"].(float64); ok {
+				max = value
+			}
 		}
 	}
 
-	return v
+	lowerName := strings.ToLower(name)
+	if !enforceSafety {
+		return min, max
+	}
+	isReverb := strings.HasPrefix(entry.InternalName, "HD2_Reverb") || strings.HasPrefix(entry.InternalName, "VIC_Reverb")
+	isDelay := strings.HasPrefix(entry.InternalName, "HD2_Delay") || strings.HasPrefix(entry.InternalName, "HD2_DL4") || strings.HasPrefix(entry.InternalName, "VIC_Delay")
+	if (isReverb && (lowerName == "decay" || lowerName == "verbdecay")) || (isDelay && lowerName == "verbdecay") {
+		max = math.Min(max, 0.7)
+	}
+	if isDelay && (lowerName == "feedback" || lowerName == "fdbk" || lowerName == "bk") {
+		max = math.Min(max, 0.75)
+	}
+	return min, max
 }

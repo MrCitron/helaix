@@ -68,6 +68,37 @@ func TestValidateBuilderResponseRejectsIncompatibleModel(t *testing.T) {
 	}
 }
 
+func TestValidateBuilderResponseRejectsInvalidParameterContract(t *testing.T) {
+	var amp helix.CatalogEntry
+	for _, candidate := range helix.CandidatesForComponent("amp") {
+		if defaults, ok := candidate.Data["Defaults"].(map[string]interface{}); ok {
+			if _, hasDrive := defaults["Drive"]; hasDrive {
+				amp = candidate
+				break
+			}
+		}
+	}
+	if amp.InternalName == "" {
+		t.Fatal("catalog has no amp with a Drive parameter")
+	}
+	modelName := amp.Name
+	if modelName == "" {
+		modelName = amp.InternalName
+	}
+	rig := &RigDescription{Chain: []RigComponent{{Name: "Amp", Type: "amp"}}}
+	response := builderResponse{Blocks: []builderBlock{{
+		Name:      "Amp",
+		ModelName: modelName,
+		Path:      0,
+		Params:    map[string]interface{}{"Drive": 1.1},
+	}}}
+
+	err := validateBuilderResponse(response, rig, true)
+	if err == nil || !strings.Contains(err.Error(), "outside the allowed range") {
+		t.Fatalf("validateBuilderResponse() error = %v, want parameter contract error", err)
+	}
+}
+
 func TestValidateBuilderResponseRejectsOverDSPBudget(t *testing.T) {
 	pedal := helix.CandidatesForComponent("pedal")[0]
 	modelName := pedal.Name
