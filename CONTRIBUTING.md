@@ -26,5 +26,7 @@ I actively welcome your pull requests. Please follow these steps:
 - The tests that were performed.
 - The OS and specific Line 6 Helix hardware used for testing, as hardware compatibility is a key part of this project.
 
+**🤖 Note on AI Reviews:** We use [CodeRabbit](https://coderabbit.ai/) to automatically review all Pull Requests. Once you submit a PR, the CodeRabbit bot will provide feedback based on our `AGENTS.md` and `STYLEGUIDE.md` files. Please review its comments and address them if necessary before a human maintainer takes a look.
+
 ## Development Setup
 Please refer to the `README.md` and `docs/` or `specs/` directories for detailed instructions on the architecture and how to set up the Go/Wails/React development environment.

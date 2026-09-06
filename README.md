@@ -97,7 +97,11 @@ Here are some planned enhancements for future versions of HelAIx:
 - **Custom LLM Prompt Tuning**: Allow users to fine-tune the AI prompts directly in the Settings to better match their personal tone preferences and workflow.
 - **Direct Preset Deployment**: Explore ways to push presets directly to the Helix hardware, potentially integrating with HX Edit or using direct USB communication.
 
-Contributions and suggestions are always welcome!
+## 🤝 Contributing
+
+Contributions and suggestions are always welcome! Please read our [CONTRIBUTING.md](CONTRIBUTING.md) for details on how to submit pull requests.
+
+Note that we use **CodeRabbit AI** to automatically review all pull requests to ensure code quality and consistency with our [Agent Guidelines](AGENTS.md) and [Style Guide](docs/STYLEGUIDE.md).
 
 ## 🙌 Credits & Kudos
 
