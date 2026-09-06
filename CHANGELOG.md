@@ -5,6 +5,18 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.10.0] - 2026-09-06
+
+### Added
+- **DSP-Safe Candidate Planning**: Tone-ranked Helix model combinations now stay within the per-path DSP budget before preset generation.
+- **Validation-Guided Recovery**: Gemini and Codex receive deterministic correction instructions and retry one rejected block mapping with the exact validation context.
+
+### Changed
+- **Stricter Preset Engineering Prompts**: Providers now preserve the validated model/path combination, chain order, and dual-DSP path progression unless the user explicitly requests a change.
+
+### Fixed
+- **Invalid Mapping Retries**: Codex retries now include the rejected JSON response so the provider can return a complete corrected mapping.
+
 ## [0.9.0] - 2026-02-03
 
 ### Added
