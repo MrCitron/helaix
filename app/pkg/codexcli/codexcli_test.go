@@ -72,6 +72,21 @@ func TestBuildRejectsUnknownHelixModel(t *testing.T) {
 	}
 }
 
+func TestPresetPromptListsOnlyComponentCandidates(t *testing.T) {
+	prompt, err := presetPrompt(gemini.RigDescription{
+		Chain: []gemini.RigComponent{{Type: "amp", Name: "Amp"}},
+	}, nil, "Helix Floor")
+	if err != nil {
+		t.Fatalf("presetPrompt() error = %v", err)
+	}
+	if !strings.Contains(prompt, "Amp [amp, ranked by tone intent]:") {
+		t.Fatalf("presetPrompt() does not include typed amp candidates")
+	}
+	if strings.Contains(prompt, "Scream 808") {
+		t.Fatal("presetPrompt() included a pedal model for an amp-only rig")
+	}
+}
+
 func TestClientReturnsTimeoutAndCancellation(t *testing.T) {
 	path := fakeCodex(t)
 	t.Setenv("FAKE_MODE", "sleep")

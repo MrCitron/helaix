@@ -2,7 +2,6 @@ package codexcli
 
 import (
 	"HelAIx/pkg/gemini"
-	"HelAIx/pkg/helix"
 	"encoding/json"
 	"fmt"
 	"strings"
@@ -17,14 +16,9 @@ Conversation history:
 }
 
 func presetPrompt(rig gemini.RigDescription, history []gemini.ChatMessage, hardware string) (string, error) {
-	helix.DB.EnsureLoaded()
-	var catalog strings.Builder
-	for _, entry := range helix.DB.Entries {
-		cost := entry.DSPMono
-		if cost == 0 {
-			cost = 3
-		}
-		catalog.WriteString(fmt.Sprintf("- %s (Based on: %s) [DSP: %.1f%%]\n", entry.Name, entry.BasedOn, cost))
+	catalog, err := gemini.CandidateCatalogForRig(rig)
+	if err != nil {
+		return "", err
 	}
 	rigJSON, err := json.Marshal(rig)
 	if err != nil {
@@ -34,7 +28,7 @@ func presetPrompt(rig gemini.RigDescription, history []gemini.ChatMessage, hardw
 	if strings.Contains(hardware, "Floor") || strings.Contains(hardware, "LT") || strings.Contains(hardware, "Rack") {
 		paths = "Helix Floor has two DSP paths: use 0 or 1, keeping each near 60-65%% DSP."
 	}
-	return fmt.Sprintf(`You are HelAIx's Line 6 Helix preset engineer. Map every non-Variax component in this rig to an exact model_name from the catalog below. Return only JSON conforming to the supplied schema.
+	return fmt.Sprintf(`You are HelAIx's Line 6 Helix preset engineer. Map every non-Variax component in this rig to an exact model_name from that component's top-ranked allowed candidates below. Return only JSON conforming to the supplied schema.
 Hardware: %s. %s Never invent a model identifier. Keep stable choices from conversation unless the user requested a change. Variax is a global input and MUST NOT appear in blocks. Reverb Decay/VerbDecay must not exceed 0.7.
 
 Rig: %s
@@ -42,8 +36,8 @@ Rig: %s
 Conversation history:
 %s
 
-Available Helix models:
-%s`, hardware, paths, rigJSON, historyJSON(history), catalog.String()), nil
+	Top-ranked Helix models by component:
+	%s`, hardware, paths, rigJSON, historyJSON(history), catalog), nil
 }
 
 func historyJSON(history []gemini.ChatMessage) string {
