@@ -81,6 +81,14 @@ func (a *App) GxChatPresetEngineer(rig gemini.RigDescription, presetName string,
 
 // GxSaveFile saves the preset to the disk and returns the full path
 func (a *App) GxSaveFile(preset helix.Preset, filename string) (string, error) {
+	if err := helix.ValidatePreset(preset); err != nil {
+		return "", fmt.Errorf("refusing to export invalid preset: %w", err)
+	}
+	nameOnly, err := validateExportFilename(filename)
+	if err != nil {
+		return "", err
+	}
+
 	cfg := a.config.Get()
 	// Use default path if absolute path not provided (simplified)
 	baseDir := cfg.OutputPath
@@ -93,13 +101,11 @@ func (a *App) GxSaveFile(preset helix.Preset, filename string) (string, error) {
 		baseDir = filepath.Join(homeDir, "Documents", "helaix")
 	}
 
-	// Ensure dir
-	os.MkdirAll(baseDir, 0755)
+	if err := os.MkdirAll(baseDir, 0755); err != nil {
+		return "", fmt.Errorf("failed to create export directory: %w", err)
+	}
 
-	// Clean filename and ensure extension
 	ext := ".hlx"
-	nameOnly := strings.TrimSuffix(filename, ext)
-
 	fullPath := filepath.Join(baseDir, nameOnly+ext)
 
 	// Incremental logic
@@ -121,6 +127,23 @@ func (a *App) GxSaveFile(preset helix.Preset, filename string) (string, error) {
 
 	err = os.WriteFile(fullPath, data, 0644)
 	return fullPath, err
+}
+
+func validateExportFilename(filename string) (string, error) {
+	filename = strings.TrimSpace(filename)
+	if filename == "" || filepath.IsAbs(filename) || filepath.Base(filename) != filename || strings.Contains(filename, "\\") {
+		return "", fmt.Errorf("filename must be a non-empty .hlx file name without path separators")
+	}
+
+	ext := ".hlx"
+	if fileExt := filepath.Ext(filename); fileExt != "" && fileExt != ext {
+		return "", fmt.Errorf("filename must use the %s extension", ext)
+	}
+	nameOnly := strings.TrimSuffix(filename, ext)
+	if nameOnly == "" || nameOnly == "." || nameOnly == ".." {
+		return "", fmt.Errorf("filename must contain a name")
+	}
+	return nameOnly, nil
 }
 
 // GxListModels returns the available models from the provider

@@ -1,9 +1,12 @@
 package gemini
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
+	"io"
+	"strings"
 
 	"google.golang.org/genai"
 )
@@ -143,9 +146,83 @@ func (c *Client) ChatSoundEngineer(ctx context.Context, history []ChatMessage, h
 	jsonText := resp.Candidates[0].Content.Parts[0].Text
 
 	var result RigDescription
-	if err := json.Unmarshal([]byte(jsonText), &result); err != nil {
+	decoder := json.NewDecoder(bytes.NewBufferString(jsonText))
+	decoder.DisallowUnknownFields()
+	if err := decoder.Decode(&result); err != nil {
 		return nil, fmt.Errorf("failed to parse Sound Engineer JSON: %v. Raw: %s", err, jsonText)
+	}
+	var extra interface{}
+	if err := decoder.Decode(&extra); err != io.EOF {
+		return nil, fmt.Errorf("Sound Engineer returned multiple JSON values")
+	}
+	if err := validateRigDescription(&result); err != nil {
+		return nil, fmt.Errorf("invalid Sound Engineer response: %w", err)
 	}
 
 	return &result, nil
+}
+
+func validateRigDescription(rig *RigDescription) error {
+	if strings.TrimSpace(rig.SuggestedName) == "" || len(rig.SuggestedName) > 16 {
+		return fmt.Errorf("suggested_name must contain 1 to 16 characters")
+	}
+	if strings.TrimSpace(rig.Explanation) == "" {
+		return fmt.Errorf("explanation is required")
+	}
+	if strings.TrimSpace(rig.GuitarModel) == "" || strings.TrimSpace(rig.Tuning) == "" {
+		return fmt.Errorf("guitar_model and tuning are required")
+	}
+	if len(rig.Chain) == 0 {
+		return fmt.Errorf("chain is required")
+	}
+
+	allowedTypes := map[string]bool{
+		"pedal":      true,
+		"amp":        true,
+		"cab":        true,
+		"modulation": true,
+		"delay":      true,
+		"reverb":     true,
+		"variax":     true,
+	}
+	chainNames := make(map[string]struct{}, len(rig.Chain))
+	hasAmp, hasCab := false, false
+	for _, component := range rig.Chain {
+		if strings.TrimSpace(component.Name) == "" || strings.TrimSpace(component.Description) == "" || strings.TrimSpace(component.Settings) == "" {
+			return fmt.Errorf("each chain component requires name, description, and settings")
+		}
+		if !allowedTypes[component.Type] {
+			return fmt.Errorf("unsupported chain component type %q", component.Type)
+		}
+		if _, exists := chainNames[component.Name]; exists {
+			return fmt.Errorf("duplicate chain component %q", component.Name)
+		}
+		chainNames[component.Name] = struct{}{}
+		hasAmp = hasAmp || component.Type == "amp"
+		hasCab = hasCab || component.Type == "cab"
+	}
+	if !hasAmp || !hasCab {
+		return fmt.Errorf("chain must include an amp and a cab")
+	}
+
+	if len(rig.Snapshots) > 4 {
+		return fmt.Errorf("at most four snapshots are supported")
+	}
+	for _, snapshot := range rig.Snapshots {
+		if strings.TrimSpace(snapshot.Name) == "" {
+			return fmt.Errorf("snapshot name is required")
+		}
+		for _, blockName := range snapshot.ActiveBlocks {
+			if _, exists := chainNames[blockName]; !exists {
+				return fmt.Errorf("snapshot %q references unknown block %q", snapshot.Name, blockName)
+			}
+		}
+		for blockName := range snapshot.Params {
+			if _, exists := chainNames[blockName]; !exists {
+				return fmt.Errorf("snapshot %q has parameters for unknown block %q", snapshot.Name, blockName)
+			}
+		}
+	}
+
+	return nil
 }

@@ -2,14 +2,26 @@ package gemini
 
 import (
 	"HelAIx/pkg/helix"
+	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
-	"os"
+	"io"
 	"strings"
 
 	"google.golang.org/genai"
 )
+
+type builderBlock struct {
+	Name      string                 `json:"name"`
+	ModelName string                 `json:"model_name"`
+	Path      int                    `json:"path"`
+	Params    map[string]interface{} `json:"params"`
+}
+
+type builderResponse struct {
+	Blocks []builderBlock `json:"blocks"`
+}
 
 // ChatPresetEngineer takes the abstract rig and maps it to specific Helix Blocks, or refines an existing implementation
 func (c *Client) ChatPresetEngineer(ctx context.Context, rig *RigDescription, presetName string, history []ChatMessage, hardware string, defaultExp int, variaxEnabled bool, hardwareModel string) (*helix.Preset, error) {
@@ -157,20 +169,19 @@ func (c *Client) ChatPresetEngineer(ctx context.Context, rig *RigDescription, pr
 		}
 	}
 
-	// 5. Parse Response
-	type BuilderBlock struct {
-		Name      string                 `json:"name"`
-		ModelName string                 `json:"model_name"`
-		Path      int                    `json:"path"`
-		Params    map[string]interface{} `json:"params"`
-	}
-	type BuilderResponse struct {
-		Blocks []BuilderBlock `json:"blocks"`
-	}
-
-	var builderResp BuilderResponse
-	if err := json.Unmarshal([]byte(jsonText), &builderResp); err != nil {
+	// 5. Parse and validate the model response before using it to build a preset.
+	var builderResp builderResponse
+	decoder := json.NewDecoder(bytes.NewBufferString(jsonText))
+	decoder.DisallowUnknownFields()
+	if err := decoder.Decode(&builderResp); err != nil {
 		return nil, fmt.Errorf("failed to parse Preset Engineer JSON: %v. Raw: %s", err, jsonText)
+	}
+	var extra interface{}
+	if err := decoder.Decode(&extra); err != io.EOF {
+		return nil, fmt.Errorf("Preset Engineer returned multiple JSON values")
+	}
+	if err := validateBuilderResponse(builderResp, rig, isDualDSP); err != nil {
+		return nil, fmt.Errorf("invalid Preset Engineer response: %w", err)
 	}
 
 	// 6. Construct The Real Preset via Template
@@ -555,7 +566,9 @@ func (c *Client) ChatPresetEngineer(ctx context.Context, rig *RigDescription, pr
 	}
 
 	if variaxRequested {
-		applyVariax(preset, rig, hardwareModel)
+		if err := applyVariax(preset, rig, hardwareModel); err != nil {
+			return nil, err
+		}
 	} else {
 		// If Variax is disabled, reset to safe defaults instead of removing
 		if data, ok := (*preset)["data"].(map[string]interface{}); ok {
@@ -641,21 +654,25 @@ func (c *Client) ChatPresetEngineer(ctx context.Context, rig *RigDescription, pr
 		}
 	}
 
+	if err := helix.ValidatePreset(*preset); err != nil {
+		return nil, fmt.Errorf("generated preset failed validation: %w", err)
+	}
+
 	return preset, nil
 }
 
-func applyVariax(preset *helix.Preset, rig *RigDescription, hardwareModel string) {
+func applyVariax(preset *helix.Preset, rig *RigDescription, hardwareModel string) error {
 	data, ok := (*preset)["data"].(map[string]interface{})
 	if !ok {
-		return
+		return fmt.Errorf("preset is missing data")
 	}
 	tone, ok := data["tone"].(map[string]interface{})
 	if !ok {
-		return
+		return fmt.Errorf("preset is missing tone data")
 	}
 	v, ok := tone["variax"].(map[string]interface{})
 	if !ok {
-		return
+		return fmt.Errorf("preset is missing variax data")
 	}
 
 	// 0. Load Configuration Once
@@ -675,11 +692,12 @@ func applyVariax(preset *helix.Preset, rig *RigDescription, hardwareModel string
 		} `json:"variax_configurations"`
 	}
 
-	confPath := "pkg/helix/data/variax_models.json"
-	configBytes, _ := os.ReadFile(confPath)
 	var root ConfigRoot
-	if configBytes != nil {
-		json.Unmarshal(configBytes, &root)
+	if err := json.Unmarshal(helix.VariaxModelsJSON, &root); err != nil {
+		return fmt.Errorf("failed to load embedded Variax configuration: %w", err)
+	}
+	if len(root.Configs) == 0 {
+		return fmt.Errorf("embedded Variax configuration is empty")
 	}
 
 	// Internal helper to get active config
@@ -925,6 +943,92 @@ func applyVariax(preset *helix.Preset, rig *RigDescription, hardwareModel string
 			}
 		}
 	}
+
+	return nil
+}
+
+func validateBuilderResponse(response builderResponse, rig *RigDescription, isDualDSP bool) error {
+	expected := make(map[string]struct{})
+	for _, component := range rig.Chain {
+		if strings.Contains(strings.ToLower(component.Type), "variax") || strings.Contains(strings.ToLower(component.Name), "variax") {
+			continue
+		}
+		if component.Name == "" {
+			return fmt.Errorf("rig contains a component without a name")
+		}
+		if _, exists := expected[component.Name]; exists {
+			return fmt.Errorf("rig contains duplicate component name %q", component.Name)
+		}
+		expected[component.Name] = struct{}{}
+	}
+
+	if len(expected) == 0 {
+		return fmt.Errorf("rig has no mappable components")
+	}
+	if len(response.Blocks) != len(expected) {
+		return fmt.Errorf("expected %d blocks, got %d", len(expected), len(response.Blocks))
+	}
+
+	seen := make(map[string]struct{}, len(response.Blocks))
+	for _, block := range response.Blocks {
+		if block.Name == "" || block.ModelName == "" {
+			return fmt.Errorf("block name and model_name are required")
+		}
+		if _, ok := expected[block.Name]; !ok {
+			return fmt.Errorf("block %q is not in the rig description", block.Name)
+		}
+		if _, duplicate := seen[block.Name]; duplicate {
+			return fmt.Errorf("block %q appears more than once", block.Name)
+		}
+		seen[block.Name] = struct{}{}
+		if block.Path < 0 || block.Path > 1 || (!isDualDSP && block.Path != 0) {
+			return fmt.Errorf("block %q has invalid path %d", block.Name, block.Path)
+		}
+
+		entry, found := helix.DB.FindByRealName(block.ModelName)
+		if !found {
+			entry, found = helix.DB.FindByID(block.ModelName)
+		}
+		if !found {
+			return fmt.Errorf("block %q uses unknown model %q", block.Name, block.ModelName)
+		}
+		defaults, ok := entry.Data["Defaults"].(map[string]interface{})
+		if !ok {
+			return fmt.Errorf("model %q has invalid defaults", block.ModelName)
+		}
+		for parameter := range block.Params {
+			if !isSupportedParameter(defaults, parameter) {
+				return fmt.Errorf("block %q has unsupported parameter %q", block.Name, parameter)
+			}
+		}
+	}
+
+	return nil
+}
+
+func isSupportedParameter(defaults map[string]interface{}, name string) bool {
+	if _, ok := defaults[name]; ok {
+		return true
+	}
+	for actual := range defaults {
+		if strings.EqualFold(actual, name) {
+			return true
+		}
+	}
+
+	aliases := map[string][]string{
+		"gain":   {"Drive", "LeadGain", "Lead Drive", "ChVol", "Master"},
+		"drive":  {"Gain", "LeadDrive", "Lead Gain", "Overdrive"},
+		"volume": {"ChVol", "Master", "Level"},
+		"vol":    {"ChVol", "Master", "Level"},
+		"mids":   {"Middle", "Mid"},
+	}
+	for _, alias := range aliases[strings.ToLower(name)] {
+		if _, ok := defaults[alias]; ok {
+			return true
+		}
+	}
+	return false
 }
 
 func sanitizeParam(internalID, k string, v interface{}) interface{} {
