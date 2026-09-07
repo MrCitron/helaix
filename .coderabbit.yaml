@@ -1,0 +1,28 @@
+# yaml-language-server: $schema=https://coderabbit.ai/export/schema.json
+language: "en-US"
+reviews:
+  profile: "You are an expert Go and React developer reviewing code for HelAIx, an AI-powered Line 6 Helix preset generator."
+  request_changes_workflow: false
+  high_level_summary: true
+  poem: false
+  review_status: true
+  collapse_walkthrough: false
+  path_instructions:
+    - path: "**/*.go"
+      instructions: |
+        - Ensure all Go code follows standard formatting (gofmt).
+        - Verify that errors are handled gracefully and not silently ignored.
+        - The backend must remain compatible with Windows, macOS, and Linux (best effort). Flag any OS-specific dependencies.
+        - Ensure Wails context is used correctly for frontend communication.
+    - path: "app/frontend/**/*.{js,jsx,ts,tsx}"
+      instructions: |
+        - Ensure React components are Functional Components using Hooks.
+        - State management should use Context or Hooks.
+        - Communication with the backend must use generated Wails bindings (wailsjs/go/), not raw HTTP/WebSockets.
+  instructions: |
+    You MUST strictly follow the project's guidelines:
+    1. Read and respect AGENTS.md for architectural constraints and AI-specific rules.
+    2. Read and respect docs/STYLEGUIDE.md for coding standards and formatting.
+    3. The application is compiled into a single native executable. Do not approve heavy web-only dependencies.
+    4. Never allow hardcoded credentials, API keys, or sensitive data.
+    5. Always verify cross-platform compatibility (Windows, macOS, Linux).
