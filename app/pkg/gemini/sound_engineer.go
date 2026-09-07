@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"strings"
+	"unicode/utf8"
 
 	"google.golang.org/genai"
 )
@@ -167,7 +168,7 @@ func ParseRigDescriptionJSON(jsonText string) (*RigDescription, error) {
 }
 
 func validateRigDescription(rig *RigDescription) error {
-	if strings.TrimSpace(rig.SuggestedName) == "" || len(rig.SuggestedName) > 16 {
+	if strings.TrimSpace(rig.SuggestedName) == "" || utf8.RuneCountInString(rig.SuggestedName) > 16 {
 		return fmt.Errorf("suggested_name must contain 1 to 16 characters")
 	}
 	if strings.TrimSpace(rig.Explanation) == "" {

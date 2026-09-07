@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useI18n } from '../i18n';
 import { GxSaveConfig, GxTestConnection, GxTestCodexCLI, GxSelectFolder, GxGetDefaultOutputPath, GxListModels, GxGetCodexCLIStatus } from '../../wailsjs/go/main/App';
 import { HelixIcons } from './IconLibrary';
@@ -13,6 +13,7 @@ const Settings = ({ config, onSave }) => {
     const [availableModels, setAvailableModels] = useState([]);
     const [loadingModels, setLoadingModels] = useState(false);
     const [codexStatus, setCodexStatus] = useState(null);
+    const codexStatusRequest = useRef(0);
     const isGemini = localConfig.provider !== 'codex_cli';
     const codexStatusText = !codexStatus
         ? t('settings.codexCheckingStatus')
@@ -32,15 +33,22 @@ const Settings = ({ config, onSave }) => {
         fetchDefault();
     }, []);
 
-    useEffect(() => {
-        const fetchCodexStatus = async () => {
-            try {
-                setCodexStatus(await GxGetCodexCLIStatus(localConfig.codex_cli_path || ''));
-            } catch (err) {
+    const refreshCodexStatus = async (path) => {
+        const request = ++codexStatusRequest.current;
+        try {
+            const status = await GxGetCodexCLIStatus(path || '');
+            if (request === codexStatusRequest.current) {
+                setCodexStatus(status);
+            }
+        } catch (err) {
+            if (request === codexStatusRequest.current) {
                 console.error('Failed to load Codex CLI status:', err);
             }
-        };
-        fetchCodexStatus();
+        }
+    };
+
+    useEffect(() => {
+        refreshCodexStatus(localConfig.codex_cli_path);
     }, [localConfig.codex_cli_path, localConfig.provider]);
 
     useEffect(() => {
@@ -71,13 +79,16 @@ const Settings = ({ config, onSave }) => {
 
     const handleSave = async () => {
         setSaving(true);
-        const err = await GxSaveConfig(localConfig);
-        if (err) {
-            alert(err);
-        } else {
-            onSave(localConfig);
+        try {
+            const err = await GxSaveConfig(localConfig);
+            if (err) {
+                alert(err);
+                return;
+            }
+            await onSave(localConfig);
+        } finally {
+            setSaving(false);
         }
-        setSaving(false);
     };
 
     const handleTestConnection = async () => {
@@ -85,7 +96,7 @@ const Settings = ({ config, onSave }) => {
         try {
             if (!isGemini) {
                 await GxTestCodexCLI(localConfig.codex_cli_path || '', localConfig.model || '');
-                setCodexStatus(await GxGetCodexCLIStatus(localConfig.codex_cli_path || ''));
+                await refreshCodexStatus(localConfig.codex_cli_path);
                 setTestStatus('success');
                 setTimeout(() => setTestStatus(''), 5000);
                 return;

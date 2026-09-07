@@ -132,6 +132,19 @@ func TestBuildAppliesValidParameters(t *testing.T) {
 	}
 }
 
+func TestSanitizedEnvironmentBlocksAuthenticationVariablesCaseInsensitively(t *testing.T) {
+	environment := []string{
+		"OPENAI_API_KEY=upper",
+		"codex_api_key=lower",
+		"CoDeX_AcCeSs_ToKeN=mixed",
+		"PATH=/bin",
+	}
+	clean := sanitizedEnvironment(environment)
+	if len(clean) != 1 || clean[0] != "PATH=/bin" {
+		t.Fatalf("sanitizedEnvironment() = %v, want only PATH", clean)
+	}
+}
+
 func TestBuildSerializesMultipleBlockParameters(t *testing.T) {
 	path := fakeCodex(t)
 	t.Setenv("FAKE_RESPONSE", validBuildResponseWithMultipleBlockParams())

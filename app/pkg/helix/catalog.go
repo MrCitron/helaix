@@ -119,6 +119,16 @@ func EffectiveDSPMono(entry CatalogEntry) float64 {
 	return DefaultDSPMono
 }
 
+// EffectiveDSP returns the catalog cost for the block's default channel mode.
+func EffectiveDSP(entry CatalogEntry) float64 {
+	if defaults, ok := entry.Data["Defaults"].(map[string]interface{}); ok {
+		if stereo, ok := defaults["@stereo"].(bool); ok && stereo && entry.DSPStereo > 0 {
+			return entry.DSPStereo
+		}
+	}
+	return EffectiveDSPMono(entry)
+}
+
 // CandidatesForComponent returns the Helix models that can implement one rig component type.
 // The catalog's internal model families are the authoritative category metadata.
 func CandidatesForComponent(componentType string) []CatalogEntry {

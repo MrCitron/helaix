@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { GxGetConfig, GxGetCodexCLIStatus } from '../wailsjs/go/main/App';
 import MainScreen from './components/MainScreen';
 import Settings from './components/Settings';
@@ -11,6 +11,7 @@ function App() {
     const [config, setConfig] = useState(null);
     const [view, setView] = useState('chat'); // 'chat' | 'settings'
     const [loading, setLoading] = useState(true);
+    const configSaveRequest = useRef(0);
 
     // Chat History State
     const [chats, setChats] = useState(() => {
@@ -75,10 +76,14 @@ function App() {
     }, []);
 
     const handleConfigSave = async (newConfig) => {
+        const request = ++configSaveRequest.current;
         setConfig(newConfig);
         const codexStatus = newConfig.provider === 'codex_cli'
             ? await GxGetCodexCLIStatus(newConfig.codex_cli_path)
             : null;
+        if (request !== configSaveRequest.current) {
+            return;
+        }
         if (view === 'settings' && (newConfig.api_key || codexStatus?.connected)) {
             setView('chat');
         }

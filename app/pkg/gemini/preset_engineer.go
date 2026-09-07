@@ -207,7 +207,7 @@ func CandidateCatalogForRig(rig RigDescription) (string, error) {
 			if name == "" {
 				name = candidate.InternalName
 			}
-			cost := helix.EffectiveDSPMono(candidate)
+			cost := helix.EffectiveDSP(candidate)
 			catalog.WriteString(fmt.Sprintf("- %s (Based on: %s) [DSP: %.1f%%]\n", name, candidate.BasedOn, cost))
 		}
 	}
@@ -305,7 +305,7 @@ func recommendedPlanForGroups(groups []rankedComponentCandidates, isDualDSP bool
 		next := make([]planState, 0, len(states)*len(group.candidates)*2)
 		for _, state := range states {
 			for rank, candidate := range group.candidates {
-				cost := helix.EffectiveDSPMono(candidate)
+				cost := helix.EffectiveDSP(candidate)
 				for _, path := range plannerPaths(state.path, isDualDSP) {
 					if state.plan.dsp[path]+cost > helix.SafeDSPPerPath {
 						continue
@@ -749,7 +749,7 @@ func BuildPresetFromJSON(jsonText string, rig *RigDescription, presetName string
 		// EXPOSE DSP MAP: Include model->DSP costs for UI visualization
 		dspMap := make(map[string]float64)
 		for _, e := range helix.DB.Entries {
-			dspMap[e.InternalName] = helix.EffectiveDSPMono(e)
+			dspMap[e.InternalName] = helix.EffectiveDSP(e)
 		}
 		if meta, ok := data["meta"].(map[string]interface{}); ok {
 			meta["dsp_map"] = dspMap
@@ -1078,7 +1078,7 @@ func applyVariax(preset *helix.Preset, rig *RigDescription, hardwareModel string
 }
 
 func validateBuilderResponse(response builderResponse, rig *RigDescription, isDualDSP bool) error {
-	expected := make(map[string]string)
+	expected := make([]RigComponent, 0, len(rig.Chain))
 	for _, component := range rig.Chain {
 		if strings.Contains(strings.ToLower(component.Type), "variax") || strings.Contains(strings.ToLower(component.Name), "variax") {
 			continue
@@ -1086,10 +1086,12 @@ func validateBuilderResponse(response builderResponse, rig *RigDescription, isDu
 		if component.Name == "" {
 			return fmt.Errorf("rig contains a component without a name")
 		}
-		if _, exists := expected[component.Name]; exists {
-			return fmt.Errorf("rig contains duplicate component name %q", component.Name)
+		for _, previous := range expected {
+			if previous.Name == component.Name {
+				return fmt.Errorf("rig contains duplicate component name %q", component.Name)
+			}
 		}
-		expected[component.Name] = component.Type
+		expected = append(expected, component)
 	}
 
 	if len(expected) == 0 {
@@ -1099,24 +1101,24 @@ func validateBuilderResponse(response builderResponse, rig *RigDescription, isDu
 		return fmt.Errorf("expected %d blocks, got %d", len(expected), len(response.Blocks))
 	}
 
-	seen := make(map[string]struct{}, len(response.Blocks))
 	blockModels := make(map[string]helix.CatalogEntry, len(response.Blocks))
 	pathDSP := [2]float64{}
-	for _, block := range response.Blocks {
+	previousPath := 0
+	for index, block := range response.Blocks {
 		if block.Name == "" || block.ModelName == "" {
 			return fmt.Errorf("block name and model_name are required")
 		}
-		componentType, ok := expected[block.Name]
-		if !ok {
-			return fmt.Errorf("block %q is not in the rig description", block.Name)
+		component := expected[index]
+		if block.Name != component.Name {
+			return fmt.Errorf("block %d is %q, want rig component %q", index, block.Name, component.Name)
 		}
-		if _, duplicate := seen[block.Name]; duplicate {
-			return fmt.Errorf("block %q appears more than once", block.Name)
-		}
-		seen[block.Name] = struct{}{}
 		if block.Path < 0 || block.Path > 1 || (!isDualDSP && block.Path != 0) {
 			return fmt.Errorf("block %q has invalid path %d", block.Name, block.Path)
 		}
+		if index > 0 && block.Path < previousPath {
+			return fmt.Errorf("block %q moves from path %d back to path %d", block.Name, previousPath, block.Path)
+		}
+		previousPath = block.Path
 
 		entry, found := helix.DB.FindByRealName(block.ModelName)
 		if !found {
@@ -1125,10 +1127,10 @@ func validateBuilderResponse(response builderResponse, rig *RigDescription, isDu
 		if !found {
 			return fmt.Errorf("block %q uses unknown model %q", block.Name, block.ModelName)
 		}
-		if !helix.IsCompatibleComponentModel(componentType, entry) {
-			return fmt.Errorf("block %q uses model %q incompatible with component type %q", block.Name, block.ModelName, componentType)
+		if !helix.IsCompatibleComponentModel(component.Type, entry) {
+			return fmt.Errorf("block %q uses model %q incompatible with component type %q", block.Name, block.ModelName, component.Type)
 		}
-		pathDSP[block.Path] += helix.EffectiveDSPMono(entry)
+		pathDSP[block.Path] += helix.EffectiveDSP(entry)
 		if err := validateParameterMap(entry, block.Params, false); err != nil {
 			return fmt.Errorf("block %q: %w", block.Name, err)
 		}

@@ -50,6 +50,45 @@ func TestValidateBuilderResponseRequiresEveryRigComponent(t *testing.T) {
 	}
 }
 
+func TestValidateBuilderResponseRequiresRigOrderAndMonotonicPaths(t *testing.T) {
+	rig := &RigDescription{Chain: []RigComponent{
+		{Name: "Amp", Type: "amp"},
+		{Name: "Cab", Type: "cab"},
+	}}
+	amp := helix.CandidatesForComponent("amp")[0]
+	cab := helix.CandidatesForComponent("cab")[0]
+	tests := []struct {
+		name     string
+		blocks   []builderBlock
+		contains string
+	}{
+		{
+			name: "out of order",
+			blocks: []builderBlock{
+				{Name: "Cab", ModelName: cab.Name, Path: 0},
+				{Name: "Amp", ModelName: amp.Name, Path: 0},
+			},
+			contains: "want rig component",
+		},
+		{
+			name: "path moves backward",
+			blocks: []builderBlock{
+				{Name: "Amp", ModelName: amp.Name, Path: 1},
+				{Name: "Cab", ModelName: cab.Name, Path: 0},
+			},
+			contains: "moves from path",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := validateBuilderResponse(builderResponse{Blocks: tt.blocks}, rig, true)
+			if err == nil || !strings.Contains(err.Error(), tt.contains) {
+				t.Fatalf("validateBuilderResponse() error = %v, want %q", err, tt.contains)
+			}
+		})
+	}
+}
+
 func TestValidateBuilderResponseRejectsIncompatibleModel(t *testing.T) {
 	delay := helix.CandidatesForComponent("delay")[0]
 	rig := &RigDescription{
@@ -174,6 +213,27 @@ func TestValidateRigDescriptionRejectsInvalidSignalChain(t *testing.T) {
 				t.Fatalf("validateRigDescription() error = %v, want %q", err, tt.want)
 			}
 		})
+	}
+}
+
+func TestValidateRigDescriptionCountsSuggestedNameRunes(t *testing.T) {
+	newRig := func(name string) *RigDescription {
+		return &RigDescription{
+			SuggestedName: name,
+			Explanation:   "A valid test signal chain.",
+			GuitarModel:   "Fender Stratocaster",
+			Tuning:        "Standard",
+			Chain: []RigComponent{
+				{Type: "amp", Name: "Amp", Description: "Core amp", Settings: "Clean"},
+				{Type: "cab", Name: "Cab", Description: "Speaker", Settings: "2x12"},
+			},
+		}
+	}
+	if err := validateRigDescription(newRig(strings.Repeat("á", 16))); err != nil {
+		t.Fatalf("16-rune suggested name error = %v", err)
+	}
+	if err := validateRigDescription(newRig(strings.Repeat("á", 17))); err == nil || !strings.Contains(err.Error(), "1 to 16") {
+		t.Fatalf("17-rune suggested name error = %v, want length rejection", err)
 	}
 }
 

@@ -32,6 +32,23 @@ func TestEffectiveDSPMonoUsesFallback(t *testing.T) {
 	}
 }
 
+func TestEffectiveDSPUsesStereoDefaults(t *testing.T) {
+	entry := CatalogEntry{
+		DSPMono:   3,
+		DSPStereo: 5,
+		Data: map[string]interface{}{
+			"Defaults": map[string]interface{}{"@stereo": true},
+		},
+	}
+	if got := EffectiveDSP(entry); got != 5 {
+		t.Fatalf("EffectiveDSP() = %.1f, want stereo cost 5.0", got)
+	}
+	entry.Data["Defaults"].(map[string]interface{})["@stereo"] = false
+	if got := EffectiveDSP(entry); got != 3 {
+		t.Fatalf("EffectiveDSP() = %.1f, want mono cost 3.0", got)
+	}
+}
+
 func TestRankCandidatesPrioritizesToneIntent(t *testing.T) {
 	candidates := []CatalogEntry{
 		{InternalName: "HD2_AmpUSDeluxe", Name: "US Deluxe", BasedOn: "Fender Deluxe Reverb"},

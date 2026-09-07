@@ -192,7 +192,7 @@ func bestDSPFixtureCombination(groups []fixtureCandidateGroup) ([]helix.CatalogE
 		}
 		for rank, candidate := range groups[index].candidates {
 			selected[index] = candidate
-			search(index+1, score+rank, usedDSP+helix.EffectiveDSPMono(candidate))
+			search(index+1, score+rank, usedDSP+helix.EffectiveDSP(candidate))
 		}
 	}
 	search(0, 0, 0)

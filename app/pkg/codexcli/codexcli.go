@@ -12,6 +12,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"time"
 )
@@ -248,6 +249,16 @@ func resolveExecutable(configuredPath string) (string, error) {
 		if candidate == "" {
 			continue
 		}
+		if runtime.GOOS == "windows" {
+			path, err := exec.LookPath(candidate)
+			if err != nil {
+				continue
+			}
+			if info, err := os.Stat(path); err == nil && !info.IsDir() {
+				return path, nil
+			}
+			continue
+		}
 		info, err := os.Stat(candidate)
 		if err == nil && !info.IsDir() && info.Mode()&0111 != 0 {
 			return candidate, nil
@@ -274,7 +285,7 @@ func sanitizedEnvironment(environment []string) []string {
 	var clean []string
 	for _, entry := range environment {
 		name, _, _ := strings.Cut(entry, "=")
-		if !blocked[name] {
+		if !blocked[strings.ToUpper(name)] {
 			clean = append(clean, entry)
 		}
 	}
