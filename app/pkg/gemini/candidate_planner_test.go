@@ -20,7 +20,7 @@ func TestRecommendedCandidatePlansForFixturesAreValid(t *testing.T) {
 
 			response := builderResponse{}
 			for _, block := range plan.blocks {
-				response.Blocks = append(response.Blocks, builderBlock{Name: block.name, ModelName: block.modelName, Path: block.path})
+				response.Blocks = append(response.Blocks, builderBlock{Name: block.name, ModelName: block.modelName, Path: block.path, Params: block.params})
 			}
 			if err := validateBuilderResponse(response, &fixture.Rig, false); err != nil {
 				t.Fatalf("planned response is invalid: %v", err)

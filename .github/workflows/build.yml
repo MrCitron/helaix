@@ -64,7 +64,7 @@ jobs:
 
       - name: Install Wails
         working-directory: app
-        run: go install github.com/wailsapp/wails/v2/cmd/wails@latest
+        run: go install github.com/wailsapp/wails/v2/cmd/wails@v2.15.0
 
       - name: Build application
         working-directory: app

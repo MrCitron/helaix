@@ -5,6 +5,15 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.12.0] - 2026-09-06
+
+### Added
+- **Curated Tone Recipes**: Clean, crunch, tight-metal, ambient, and acoustic rigs now start from catalog-validated models and practical baseline parameters.
+- **Golden Recipe Fixtures**: Automated coverage verifies recipe models, key parameters, DSP budget, preset validation, and export serialization.
+
+### Changed
+- **Reproducible Wails Builds**: CI pins Wails CLI v2.15.0, which packages the macOS app correctly with the project's Go 1.24 toolchain.
+
 ## [0.11.0] - 2026-09-06
 
 ### Added

@@ -15,6 +15,18 @@
     "expected_hints": {
       "Fender Twin clean amp": ["clean", "deluxe", "twin", "princess", "rivet", "jazz", "fullerton"],
       "Natural spring reverb": ["spring"]
+    },
+    "expected_recipe": {
+      "models": {
+        "Fender Twin clean amp": "US Deluxe Nrm",
+        "Open clean cab": "1x12 US Deluxe",
+        "Natural spring reverb": "HD2_Reverb63Spring"
+      },
+      "params": {
+        "Fender Twin clean amp": {"Drive": 0.25, "Mid": 0.55},
+        "Open clean cab": {"LowCut": 90, "HighCut": 9000},
+        "Natural spring reverb": {"Decay": 0.32, "Mix": 0.18}
+      }
     }
   },
   {
@@ -33,6 +45,20 @@
     },
     "expected_hints": {
       "Marshall Plexi crunch amp": ["plexi", "brit", "matchstick", "tweed", "essex", "a30", "rocker"]
+    },
+    "expected_recipe": {
+      "models": {
+        "Klon-style boost": "Prize Drive",
+        "Marshall Plexi crunch amp": "Brit Plexi Jump",
+        "British 4x12 cab": "4x12 Brit V30",
+        "Short room reverb": "HD2_ReverbRoom"
+      },
+      "params": {
+        "Klon-style boost": {"Bass Cut": true, "Drive": 0.18, "Level": 0.65},
+        "Marshall Plexi crunch amp": {"BrtDrive": 0.48, "NrmDrive": 0.42},
+        "British 4x12 cab": {"LowCut": 90, "HighCut": 8500},
+        "Short room reverb": {"Decay": 0.22, "Mix": 0.12}
+      }
     }
   },
   {
@@ -71,10 +97,26 @@
     "expected_hints": {
       "Ambient shimmer delay": ["cosmos", "heliosphere", "adriatic", "tape"],
       "Ambient shimmer reverb": ["shimmer", "glitz", "ganymede", "plateaux", "searchlights", "particle", "cave"]
+    },
+    "expected_recipe": {
+      "models": {
+        "Clean ambient amp": "US Deluxe Nrm",
+        "Wide clean cab": "1x12 US Deluxe",
+        "Ambient chorus": "70s Chorus",
+        "Ambient shimmer delay": "Cosmos Echo",
+        "Ambient shimmer reverb": "Glitz"
+      },
+      "params": {
+        "Clean ambient amp": {"Drive": 0.2, "Treble": 0.62},
+        "Wide clean cab": {"LowCut": 100, "HighCut": 9500},
+        "Ambient chorus": {"ChorusIntensity": 0.32, "Mix": 0.28},
+        "Ambient shimmer delay": {"Time": 0.62, "Feedback": 0.48, "Mix": 0.32},
+        "Ambient shimmer reverb": {"Decay": 0.68, "Mix": 0.38, "Mod Mix": 0.42}
+      }
     }
   },
   {
-    "name": "metal",
+    "name": "tight-metal",
     "rig": {
       "suggested_name": "TIGHT METAL",
       "explanation": "Tight modern metal rhythm with controlled low end.",
@@ -89,6 +131,20 @@
     },
     "expected_hints": {
       "Modern metal amp": ["lead", "rectifire", "vitriol", "panama", "ubersonic", "badonk", "fatality", "placater", "revv", "meteor", "solo", "cartographer"]
+    },
+    "expected_recipe": {
+      "models": {
+        "Metal tight boost": "Scream 808",
+        "Modern metal amp": "Cali Rectifire",
+        "Tight metal 4x12 cab": "4x12 Cali V30",
+        "Short metal room": "HD2_ReverbRoom"
+      },
+      "params": {
+        "Metal tight boost": {"Gain": 0.1, "Tone": 0.58},
+        "Modern metal amp": {"Drive": 0.55, "Bass": 0.35, "Presence": 0.42},
+        "Tight metal 4x12 cab": {"LowCut": 95, "HighCut": 8000},
+        "Short metal room": {"Decay": 0.16, "Mix": 0.08}
+      }
     }
   },
   {
@@ -108,6 +164,20 @@
     },
     "expected_hints": {
       "Parametric EQ for acoustic": ["parametric"]
+    },
+    "expected_recipe": {
+      "models": {
+        "Parametric EQ for acoustic": "Parametric",
+        "Clean acoustic amp": "US Deluxe Nrm",
+        "Full range acoustic cab": "1x12 US Deluxe",
+        "Natural acoustic room": "HD2_ReverbRoom"
+      },
+      "params": {
+        "Parametric EQ for acoustic": {"LowCut": 80, "MidFreq": 2800, "MidGain": -2.5},
+        "Clean acoustic amp": {"Drive": 0.15, "Treble": 0.58},
+        "Full range acoustic cab": {"LowCut": 85, "HighCut": 11000},
+        "Natural acoustic room": {"Decay": 0.28, "Mix": 0.16}
+      }
     }
   }
 ]

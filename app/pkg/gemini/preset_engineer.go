@@ -28,8 +28,10 @@ type builderResponse struct {
 const plannerBeamWidth = 256
 
 type rankedComponentCandidates struct {
-	component  RigComponent
-	candidates []helix.CatalogEntry
+	component       RigComponent
+	candidates      []helix.CatalogEntry
+	preferredModel  string
+	preferredParams map[string]interface{}
 }
 
 type plannedBlock struct {
@@ -37,6 +39,7 @@ type plannedBlock struct {
 	modelName string
 	path      int
 	dsp       float64
+	params    map[string]interface{}
 }
 
 type recommendedCandidatePlan struct {
@@ -225,7 +228,7 @@ func RecommendedCandidatePlanForRig(rig RigDescription, isDualDSP bool) (string,
 	var text strings.Builder
 	text.WriteString("RECOMMENDED DSP-SAFE STARTING PLAN:\n")
 	for _, block := range plan.blocks {
-		text.WriteString(fmt.Sprintf("- %s -> %s (path %d, DSP %.1f%%)\n", block.name, block.modelName, block.path, block.dsp))
+		text.WriteString(fmt.Sprintf("- %s -> %s (path %d, DSP %.1f%%, params: %s)\n", block.name, block.modelName, block.path, block.dsp, plannedParamsText(block.params)))
 	}
 	text.WriteString(fmt.Sprintf("Path 0 total: %.1f%% DSP\n", plan.dsp[0]))
 	if isDualDSP {
@@ -245,6 +248,7 @@ Return a complete replacement JSON object only, with a full "blocks" array; do n
 
 func rankedCandidateGroups(rig RigDescription) ([]rankedComponentCandidates, error) {
 	groups := make([]rankedComponentCandidates, 0, len(rig.Chain))
+	recipe := curatedRecipeForRig(rig)
 	for _, component := range rig.Chain {
 		if component.Type == "variax" {
 			continue
@@ -254,9 +258,32 @@ func rankedCandidateGroups(rig RigDescription) ([]rankedComponentCandidates, err
 		if len(candidates) == 0 {
 			return nil, fmt.Errorf("no Helix candidates available for component %q of type %q", component.Name, component.Type)
 		}
-		groups = append(groups, rankedComponentCandidates{component: component, candidates: candidates})
+		group := rankedComponentCandidates{component: component, candidates: candidates}
+		if preferred, ok := recipe.blockFor(component.Type); ok {
+			entry, found := helix.DB.FindByRealName(preferred.modelName)
+			if found && helix.IsCompatibleComponentModel(component.Type, entry) {
+				group.candidates = preferCandidate(candidates, entry)
+				group.preferredModel = preferred.modelName
+				group.preferredParams = preferred.params
+			}
+		}
+		groups = append(groups, group)
 	}
 	return groups, nil
+}
+
+func preferCandidate(candidates []helix.CatalogEntry, preferred helix.CatalogEntry) []helix.CatalogEntry {
+	ordered := make([]helix.CatalogEntry, 0, len(candidates)+1)
+	ordered = append(ordered, preferred)
+	for _, candidate := range candidates {
+		if candidate.InternalName != preferred.InternalName {
+			ordered = append(ordered, candidate)
+		}
+	}
+	if len(ordered) > len(candidates) {
+		ordered = ordered[:len(candidates)]
+	}
+	return ordered
 }
 
 func recommendedPlanForRig(rig RigDescription, isDualDSP bool) (recommendedCandidatePlan, error) {
@@ -288,7 +315,11 @@ func recommendedPlanForGroups(groups []rankedComponentCandidates, isDualDSP bool
 						modelName = candidate.InternalName
 					}
 					plan := state.plan
-					plan.blocks = append(append([]plannedBlock(nil), state.plan.blocks...), plannedBlock{name: group.component.Name, modelName: modelName, path: path, dsp: cost})
+					params := map[string]interface{}(nil)
+					if strings.EqualFold(modelName, group.preferredModel) {
+						params = cloneParams(group.preferredParams)
+					}
+					plan.blocks = append(append([]plannedBlock(nil), state.plan.blocks...), plannedBlock{name: group.component.Name, modelName: modelName, path: path, dsp: cost, params: params})
 					plan.dsp[path] += cost
 					next = append(next, planState{plan: plan, rankScore: state.rankScore + rank, path: path})
 				}
@@ -372,6 +403,7 @@ func BuildPresetFromJSON(jsonText string, rig *RigDescription, presetName string
 	if err := decoder.Decode(&extra); err != io.EOF {
 		return nil, fmt.Errorf("Preset Engineer returned multiple JSON values")
 	}
+	applyCuratedRecipeDefaults(&builderResp, rig)
 	if err := validateBuilderResponse(builderResp, rig, isDualDSP); err != nil {
 		return nil, fmt.Errorf("invalid Preset Engineer response: %w", err)
 	}
