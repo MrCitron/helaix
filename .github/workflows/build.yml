@@ -49,6 +49,15 @@ jobs:
         working-directory: app/frontend
         run: npm install
 
+      - name: Reject generated frontend hashes
+        run: |
+          tracked_hashes="$(git ls-files -- 'app/frontend/*.md5' 'app/frontend/*.sha1' 'app/frontend/*.sha256' 'app/frontend/*.sha512')"
+          if [ -n "$tracked_hashes" ]; then
+            echo "Generated frontend hashes must not be versioned:"
+            echo "$tracked_hashes"
+            exit 1
+          fi
+
       - name: Run Go tests
         working-directory: app
         run: go test ./...
