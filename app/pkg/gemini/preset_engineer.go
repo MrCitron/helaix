@@ -12,7 +12,7 @@ import (
 )
 
 // ChatPresetEngineer takes the abstract rig and maps it to specific Helix Blocks, or refines an existing implementation
-func (c *Client) ChatPresetEngineer(ctx context.Context, rig *RigDescription, presetName string, history []ChatMessage, hardware string, defaultExp int, variaxEnabled bool, hardwareModel string) (*helix.Preset, error) {
+func (c *Client) ChatPresetEngineer(ctx context.Context, rig *RigDescription, presetName string, history []ChatMessage, hardware string, defaultExp int, variaxEnabled bool, hardwareModel string, defaultInstrument string) (*helix.Preset, error) {
 	// 1. Prepare Catalog Context
 	helix.DB.EnsureLoaded()
 
@@ -40,6 +40,7 @@ func (c *Client) ChatPresetEngineer(ctx context.Context, rig *RigDescription, pr
 	
 	TARGET HARDWARE: %s
 	DSP CAPACITY: %s
+	INSTRUMENT CONTEXT: %s
 	
 	AVAILABLE MODELS:
 	%s
@@ -57,6 +58,7 @@ func (c *Client) ChatPresetEngineer(ctx context.Context, rig *RigDescription, pr
 	- High-end Amps, Cabs, and IRs take ~30-40%% each. Poly-FX and Stereo Reverbs/Delays take ~15-25%%.
 	- Path 1 is "path": 0, Path 2 is "path": 1.
 	- If the hardware has only 1 path, use "path": 0 for everything.
+	- BASS PRESETS: If INSTRUMENT CONTEXT is Bass, you MUST ONLY select Bass Amps and Bass Cabs from the list (e.g., SVT, Ampeg, GK, Mesa Bass). Do NOT select Guitar Amps/Cabs for Bass presets. Keep the routing simple. Avoid splitting into dual parallel chains (e.g., dual amps) unless explicitly necessary for the tone. Prefer a single chain for simplicity and DSP efficiency.
 
 	PARAMETER CONSTRAINTS:
 	- For Reverb blocks, NEVER set "Decay" or "VerbDecay" to its maximum value (1.0). Keep it at 0.7 or lower to avoid excessive noise/feedback loops.
@@ -79,7 +81,7 @@ func (c *Client) ChatPresetEngineer(ctx context.Context, rig *RigDescription, pr
 			{ "name": "Tube Screamer", "model_name": "Scream 808", "path": 0, "params": { "Gain": 0.5 } }
 		]
 	}
-	`, hardware, dspCapacity, availableModels.String())
+	`, hardware, dspCapacity, defaultInstrument, availableModels.String())
 
 	// Truncate prompt if needed (though Gemini 1.5 Handle this well)
 	if len(sysPrompt) > 100000 {

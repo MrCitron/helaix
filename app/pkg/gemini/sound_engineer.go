@@ -34,11 +34,12 @@ type Snapshot struct {
 }
 
 // ChatSoundEngineer creates or refines the abstract sound design based on discussion history
-func (c *Client) ChatSoundEngineer(ctx context.Context, history []ChatMessage, hardwareModel string) (*RigDescription, error) {
+func (c *Client) ChatSoundEngineer(ctx context.Context, history []ChatMessage, hardwareModel string, defaultInstrument string) (*RigDescription, error) {
 	// Prompt engineering for Sound Engineer Agent
-	sysPrompt := fmt.Sprintf(`You are a world-class Sound Engineer and guitar technician. 
-	Your goal is to design or refine a guitar rig (signal chain) based on the user's description and the ongoing discussion.
-	The user is using a **Line 6 Variax %s** hardware model.
+	sysPrompt := fmt.Sprintf(`You are a world-class Sound Engineer and guitar/bass technician. 
+	Your goal is to design or refine a signal chain based on the user's description and the ongoing discussion.
+	The user's default instrument context is: **%s**.
+	The user is using a **Line 6 Variax %s** hardware model (if enabled).
 	
 	CONVERSATION LOGIC:
 	- You are in a refinement loop. The user might ask for changes ("add more gain", "swap the amp").
@@ -76,7 +77,10 @@ func (c *Client) ChatSoundEngineer(ctx context.Context, history []ChatMessage, h
 	- **Limit**: Strictly maximum 4 snapshots.
 
 	GUITAR & VARIAX LOGIC:
-	- **REAL-WORLD NAMES ONLY**: The "guitar_model" fields must use iconic, real-world guitar names (e.g. "Fender Stratocaster", "Gibson Les Paul Standard", "Fender Jaguar"). 
+	- **INSTRUMENT CONTEXT**: Rely on the user's prompt to determine if they are asking for a different instrument than the default one. 
+	- If the context is Bass, explicitly prioritize bass amp models (e.g., SVT, Ampeg, GK) and bass cabs.
+	- **VARIAX BASS CONSTRAINT**: If a user is using a Variax as a guitar but asking for a bass preset, do NOT use the Variax to simulate a bass (no pitch shifting/alternate tunings). Use standard bass amp modeling for a physical bass instead.
+	- **REAL-WORLD NAMES ONLY**: The "guitar_model" fields must use iconic, real-world instrument names (e.g. "Fender Stratocaster", "Fender Precision Bass"). 
 	- **FORBIDDEN**: Never use technical Variax bank names like "Spank", "Lester", or "T-Model" in these fields. 
 	- **SNAP-LOCK REQUIREMENT**: YOU MUST populate the "guitar_model" field for EVERY snapshot.
 	- **VARIANT SPECIFICATION**: To select a specific variant (1-5), append the pickup position in parentheses: "Fender Stratocaster (Pickup Pos 2)". 
@@ -99,11 +103,11 @@ func (c *Client) ChatSoundEngineer(ctx context.Context, history []ChatMessage, h
 	      { "name": "Chorus", "guitar_model": "Gibson Les Paul (Pickup Pos 5)", "active_blocks": [...] }
 	    ]
 	  }
-	- Additionally, YOU SHOULD add a "Line6 Variax" component to the beginning of the "chain" array. Store the variant in its "settings" field (e.g. "Fender Jaguar").
+	- Additionally, if the instrument context is Guitar, YOU SHOULD add a "Line6 Variax" component to the beginning of the "chain" array. If it is Bass, DO NOT add a Variax component.
 
 	Ensure the chain is logically ordered (Pedals -> Amp -> Cab -> Post-FX).
 	ALWAYS include an Amp and a Cab.
-	`, hardwareModel)
+	`, defaultInstrument, hardwareModel)
 
 	// Construct the conversation history with system prompt
 	var contents []*genai.Content

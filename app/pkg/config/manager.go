@@ -15,6 +15,7 @@ type AppConfig struct {
 	HardwareTarget      string `json:"hardware_target"`
 	DeleteNoConfirm     bool   `json:"delete_no_confirm"`
 	IncrementalSave     bool   `json:"incremental_save"`
+	DefaultInstrument   string `json:"default_instrument"`    // "Guitar" or "Bass"
 	DefaultExpPedal     int    `json:"default_exp_pedal"`     // 0 = None, 1 = Exp 1, 2 = Exp 2, 3 = Exp 3
 	VariaxEnabled       bool   `json:"variax_enabled"`        // Whether to control Variax
 	VariaxHardwareModel string `json:"variax_hardware_model"` // JTV, Standard, Shuriken
@@ -44,7 +45,8 @@ func NewManager() *Manager {
 			Model:               "gemini-2.5-flash", // Updated to current stable model
 			OutputPath:          defaultOutPath,
 			HardwareTarget:      "Helix Floor",
-			DefaultExpPedal:     1, // Default to Exp 1
+			DefaultInstrument:   "Guitar", // "Guitar" or "Bass"
+			DefaultExpPedal:     1,        // Default to Exp 1
 			VariaxEnabled:       false,
 			VariaxHardwareModel: "Standard",
 		},

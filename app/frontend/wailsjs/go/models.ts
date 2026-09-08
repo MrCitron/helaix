@@ -8,6 +8,7 @@ export namespace config {
 	    hardware_target: string;
 	    delete_no_confirm: boolean;
 	    incremental_save: boolean;
+	    default_instrument: string;
 	    default_exp_pedal: number;
 	    variax_enabled: boolean;
 	    variax_hardware_model: string;
@@ -25,6 +26,7 @@ export namespace config {
 	        this.hardware_target = source["hardware_target"];
 	        this.delete_no_confirm = source["delete_no_confirm"];
 	        this.incremental_save = source["incremental_save"];
+	        this.default_instrument = source["default_instrument"];
 	        this.default_exp_pedal = source["default_exp_pedal"];
 	        this.variax_enabled = source["variax_enabled"];
 	        this.variax_hardware_model = source["variax_hardware_model"];
