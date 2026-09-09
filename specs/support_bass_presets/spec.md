@@ -12,9 +12,12 @@ This feature adds comprehensive support for generating Bass presets within HelAI
 ## Functional Requirements
 
 - **AI Context & System Prompts**:
-  - Update the system prompts sent to the Gemini API to explicitly instruct it to prioritize bass amp models (e.g., SVT, Ampeg, GK, etc.) and bass cabs when the user's intent is bass-oriented or when the default bass context is selected.
-- **Dynamic Instrument Inference**:
-  - The sound engineer (AI) should rely on the user's prompt to determine if they are asking for a different instrument than the default one set in settings.
+  - Update the system prompts sent to the Gemini API to explicitly instruct it to prioritize bass amp models (e.g., SVT, Ampeg, GK, etc.) and bass cabs when the resolved instrument is Bass.
+- **Instrument Resolution**:
+  - The user selects a default instrument (`Guitar` or `Bass`) in application settings.
+  - An explicit instrument mention in the prompt overrides that default. If the prompt does not specify an instrument, the configured default remains authoritative.
+  - The Sound Engineer must return the resolved `instrument` (`Guitar` or `Bass`) in the `RigDescription`.
+  - The Preset Engineer must use that resolved value and must not infer a different instrument from artist, genre, model names, or effect choices.
 - **Catalog & Model Validation**:
   - Ensure the internal catalog correctly tags and lists bass-specific amps, cabs, and effects.
   - The preset engineer must properly account for DSP limits of bass models.
@@ -26,7 +29,10 @@ This feature adds comprehensive support for generating Bass presets within HelAI
 - **Ambiguous User Prompts**:
   - If a user asks for a "heavy preset" without specifying the instrument, the AI should rely on the default instrument setting in the settings.
 - **Variax Pitch Simulation Constraint**:
-  - In the case of a user using a Variax as a guitar but asking for a bass preset, the sound engineer should *not* use the Variax to simulate a bass (e.g., via pitch shifting or alternate tunings on the Variax block). The preset must use standard bass amp modeling for a physical bass instrument instead.
+  - Variax is available only when the resolved instrument is Guitar and Automatic Variax Control is enabled in settings.
+  - When the resolved instrument is Bass, Variax is always disabled, regardless of the setting and regardless of the user's physical instrument.
+  - The Sound Engineer must return `use_variax` and add a `Line6 Variax` chain component only when `use_variax` is true.
+  - The Preset Engineer must use `use_variax` as the sole Variax decision and must not derive it from `guitar_model`.
 - **DSP Overload with Parallel Paths**:
   - Complex dual-amp bass routings might hit DSP limits on devices like the HX Stomp. The AI must handle DSP overload by falling back to simpler single-amp solutions or prompting the user.
 - **Mixed Gear Requests**:

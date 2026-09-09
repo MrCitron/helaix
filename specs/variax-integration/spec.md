@@ -10,6 +10,8 @@ As a user with a Line 6 Variax guitar, I want HelAIx to automatically configure 
 2.  **Sound Engineer Agent**:
     *   Contextually aware of the user's Variax model.
     *   Suggests a **Real Guitar Model** (e.g., "1959 Stratocaster") and tuning (e.g., "Drop D") if explicitly requested **or contextually appropriate** (e.g., for specific songs or styles).
+    *   Resolves the effective instrument from the prompt and the configured default: an explicit Guitar/Bass mention overrides the default; otherwise the default is used.
+    *   Returns `instrument` and `use_variax`. `use_variax` is true only for resolved Guitar designs when Automatic Variax Control is enabled.
 3.  **Visual Confirmation**: 
     *   **Real Chain**: Displays the icon + the real guitar name (e.g., "Stratocaster").
     *   **Helix Chain**: Displays the Variax bank/simulation name (e.g., "Spank").
@@ -18,7 +20,11 @@ As a user with a Line 6 Variax guitar, I want HelAIx to automatically configure 
 ## Functional Requirements
 ### Sound Engineer
 *   Take `VariaxHardwareModel` as context.
+*   Take Automatic Variax Control and the configured default instrument as context.
+*   Never enable Variax for a resolved Bass design.
 *   Update `RigDescription` to include:
+    *   `instrument`: resolved `Guitar` or `Bass` value
+    *   `use_variax`: resolved boolean decision
     *   `guitar_model`: string (Real Guitar Name, e.g., "Stratocaster", "Les Paul")
     *   `tuning`: string (e.g., "Drop D")
 
@@ -28,6 +34,7 @@ As a user with a Line 6 Variax guitar, I want HelAIx to automatically configure 
 *   Map real `guitar_model` name (e.g., "Les Paul") to Variax `@variax_model` ID (e.g., Lester) based on the hardware profile.
 *   Display Variax bank name in the technical visualizer.
 *   Apply 6-string tuning offsets if a tuning is suggested by the AI (either explicitly requested or contextually inferred). If no tuning is suggested, leave Variax tuning parameters unspecified (don't force).
+*   The Preset Engineer maps the resolved design and does not re-infer instrument or Variax intent.
 
 ## UI Design
 - **Icon**: Replace "GUITAR" text with a custom SVG guitar icon in the `DesignVisualizer` and `PresetVisualizer`.

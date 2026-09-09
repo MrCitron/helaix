@@ -92,6 +92,8 @@ export namespace gemini {
 	export class RigDescription {
 	    suggested_name: string;
 	    explanation: string;
+	    instrument: string;
+	    use_variax: boolean;
 	    guitar_model: string;
 	    tuning: string;
 	    chain: RigComponent[];
@@ -105,6 +107,8 @@ export namespace gemini {
 	        if ('string' === typeof source) source = JSON.parse(source);
 	        this.suggested_name = source["suggested_name"];
 	        this.explanation = source["explanation"];
+	        this.instrument = source["instrument"];
+	        this.use_variax = source["use_variax"];
 	        this.guitar_model = source["guitar_model"];
 	        this.tuning = source["tuning"];
 	        this.chain = this.convertValues(source["chain"], RigComponent);

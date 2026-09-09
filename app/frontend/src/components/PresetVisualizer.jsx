@@ -13,6 +13,9 @@ function PresetVisualizer({ preset, design, compact = false, activeSnapIdx: prop
 
     const snapshots = (design?.snapshots || []).map((s, i) => ({ ...s, index: i }));
     const activeSnapshot = snapshots.length > 0 ? { ...(snapshots[activeSnapIdx] || snapshots[0]), index: activeSnapIdx } : null;
+    const designHasVariax = design?.chain?.some(component =>
+        component.type?.toLowerCase().includes('variax') || component.name?.toLowerCase().includes('variax')
+    ) ?? false;
 
     // 1. Unified Block Collection (DSP 0 + DSP 1)
     const getBlocksFromDSP = (dspKey) => {
@@ -91,7 +94,7 @@ function PresetVisualizer({ preset, design, compact = false, activeSnapIdx: prop
     const hasVariaxData = preset.data.tone.variax && preset.data.tone.variax["@variax_model"] !== 0;
     const hasVariaxControllers = preset.data.tone.controller?.variax && Object.keys(preset.data.tone.controller.variax).length > 0;
 
-    if (hasVariaxData || hasVariaxControllers) {
+    if (designHasVariax && (hasVariaxData || hasVariaxControllers)) {
         const modelId = activeVariax?.["@variax_model"] || 0;
         const variaxType = preset.data.meta?.variax_type || "jtv";
         const getName = (id) => {

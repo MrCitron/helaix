@@ -20,6 +20,7 @@ type CatalogEntry struct {
 	BasedOn      string                 `json:"BasedOn"`
 	DSPMono      float64                `json:"DSP_Mono,omitempty"`
 	DSPStereo    float64                `json:"DSP_Stereo,omitempty"`
+	Instrument   string                 `json:"Instrument,omitempty"`
 	Data         map[string]interface{} `json:"Data"` // Full block data
 }
 

@@ -60,7 +60,7 @@ func (a *App) GxChatSoundEngineer(history []gemini.ChatMessage) (*gemini.RigDesc
 	}
 	defer client.Close()
 
-	return client.ChatSoundEngineer(a.ctx, history, cfg.VariaxHardwareModel, cfg.DefaultInstrument)
+	return client.ChatSoundEngineer(a.ctx, history, cfg.VariaxHardwareModel, cfg.DefaultInstrument, cfg.VariaxEnabled)
 }
 
 // GxChatPresetEngineer calls the Preset Engineer Agent with history and baseline rig
