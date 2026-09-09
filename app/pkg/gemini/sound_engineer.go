@@ -164,6 +164,7 @@ func (c *Client) ChatSoundEngineer(ctx context.Context, history []ChatMessage, h
 	return &result, nil
 }
 
+// resolveVariaxDecision allows Variax only for guitars when automatic control is enabled.
 func resolveVariaxDecision(instrument string, enabled bool) bool {
 	return instrument == "Guitar" && enabled
 }

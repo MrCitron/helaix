@@ -615,10 +615,12 @@ func (c *Client) ChatPresetEngineer(ctx context.Context, rig *RigDescription, pr
 	return preset, nil
 }
 
+// isBassInstrument identifies bass defaults without treating unrelated guitar descriptions as bass intent.
 func isBassInstrument(instrument string) bool {
 	return strings.Contains(strings.ToLower(instrument), "bass")
 }
 
+// isBassPreset preserves legacy bass detection for designs created before instrument resolution was added.
 func isBassPreset(rig *RigDescription, instrument string) bool {
 	model := strings.ToLower(rig.GuitarModel)
 	if isBassInstrument(model) || strings.Contains(model, "stingray") || strings.Contains(model, "music man") {
@@ -639,6 +641,7 @@ func isBassPreset(rig *RigDescription, instrument string) bool {
 	return isBassInstrument(instrument)
 }
 
+// shouldApplyVariax applies the legacy Variax decision while preventing Variax use for bass designs.
 func shouldApplyVariax(rig *RigDescription, enabled bool, instrument string) bool {
 	if isBassPreset(rig, instrument) {
 		return false
@@ -654,6 +657,7 @@ func shouldApplyVariax(rig *RigDescription, enabled bool, instrument string) boo
 	return false
 }
 
+// bassSafeModel replaces a guitar-only amp or cab with a catalogued bass-compatible fallback.
 func bassSafeModel(entry helix.CatalogEntry) helix.CatalogEntry {
 	modelType := strings.ToLower(entry.InternalName)
 	isAmp := strings.Contains(modelType, "_amp") || strings.Contains(modelType, "_preamp")
@@ -665,6 +669,7 @@ func bassSafeModel(entry helix.CatalogEntry) helix.CatalogEntry {
 	return bassFallbackEntry(isCab)
 }
 
+// bassFallbackForRequest maps an unresolved bass block request to a safe catalog entry.
 func bassFallbackForRequest(modelName, blockName string) (helix.CatalogEntry, bool) {
 	requested := strings.ToLower(modelName + " " + blockName)
 	isCab := false
@@ -687,6 +692,7 @@ func bassFallbackForRequest(modelName, blockName string) (helix.CatalogEntry, bo
 	return bassFallbackEntry(false), true
 }
 
+// bassFallbackEntry returns the standard bass amp or cab used when generation omits one.
 func bassFallbackEntry(isCab bool) helix.CatalogEntry {
 	if isCab {
 		entry, _ := helix.DB.FindByID("HD2_CabMicIr_8x10SVTAV")
@@ -696,6 +702,7 @@ func bassFallbackEntry(isCab bool) helix.CatalogEntry {
 	return entry
 }
 
+// addBassFallbackBlock inserts a generated bass block and enables it in every snapshot.
 func addBassFallbackBlock(preset *helix.Preset, dsp map[string]interface{}, entry helix.CatalogEntry, name string, blockType, position int) {
 	if dsp == nil {
 		return
@@ -744,6 +751,7 @@ func addBassFallbackBlock(preset *helix.Preset, dsp map[string]interface{}, entr
 	}
 }
 
+// isBassCompatibleModel accepts catalog entries marked as bass or known bass hardware models.
 func isBassCompatibleModel(entry helix.CatalogEntry) bool {
 	if entry.Instrument == "Bass" {
 		return true
