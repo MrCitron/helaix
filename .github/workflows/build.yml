@@ -6,6 +6,7 @@ on:
       - main
     paths:
       - 'app/**'
+      - '.github/workflows/**'
   workflow_dispatch:
 
 jobs:
