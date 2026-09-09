@@ -227,6 +227,7 @@ func (c *Client) ChatPresetEngineer(ctx context.Context, rig *RigDescription, pr
 		} else {
 			entryID, foundID := helix.DB.FindByID(b.ModelName)
 			if foundID {
+				entry = entryID
 				internalID = entryID.InternalName
 				defaultData = entryID.Data["Defaults"].(map[string]interface{})
 			} else {
@@ -859,6 +860,7 @@ func applyVariax(preset *helix.Preset, rig *RigDescription, hardwareModel string
 	}
 }
 
+// resolveParamKey maps an AI-provided parameter name to a catalog key.
 func resolveParamKey(defaults map[string]interface{}, requested string) (string, bool) {
 	if _, ok := defaults[requested]; ok {
 		return requested, true
@@ -889,6 +891,7 @@ func resolveParamKey(defaults map[string]interface{}, requested string) (string,
 	return "", false
 }
 
+// parameterLimits returns the hardware limits declared for a catalog parameter.
 func parameterLimits(entry helix.CatalogEntry, key string) (float64, float64, bool) {
 	dict, ok := entry.Data["Controller_Dict"].(map[string]interface{})
 	if !ok {
@@ -903,6 +906,7 @@ func parameterLimits(entry helix.CatalogEntry, key string) (float64, float64, bo
 	return min, max, minOK && maxOK
 }
 
+// clampParam keeps numeric parameters within the hardware catalog limits.
 func clampParam(entry helix.CatalogEntry, key string, value interface{}) interface{} {
 	number, ok := value.(float64)
 	if !ok {
@@ -921,6 +925,7 @@ func clampParam(entry helix.CatalogEntry, key string, value interface{}) interfa
 	return number
 }
 
+// normalizeParamType falls back to the catalog default when an AI value has the wrong type.
 func normalizeParamType(entry helix.CatalogEntry, key string, value interface{}) interface{} {
 	defaults, ok := entry.Data["Defaults"].(map[string]interface{})
 	if !ok {
@@ -948,6 +953,7 @@ func normalizeParamType(entry helix.CatalogEntry, key string, value interface{})
 	return value
 }
 
+// snapshotController builds a hardware-compatible snapshot controller definition.
 func snapshotController(entry helix.CatalogEntry, key string) map[string]interface{} {
 	min, max := 0.0, 1.0
 	if catalogMin, catalogMax, ok := parameterLimits(entry, key); ok {
@@ -961,6 +967,7 @@ func snapshotController(entry helix.CatalogEntry, key string) map[string]interfa
 	}
 }
 
+// sanitizeParam applies model-independent safety limits before catalog validation.
 func sanitizeParam(internalID, k string, v interface{}) interface{} {
 	val, isFloat := v.(float64)
 	if !isFloat {
