@@ -7,9 +7,9 @@
 
 ## Article II: Vision Verification
 **Trust but Verify (Visually).**
-- When implementing UI, the Agent MUST take a screenshot using the integrated Browser.
+- When implementing UI, the Agent MUST take a screenshot using an integrated Browser or another available screenshot-capable tool.
 - Compare the screenshot to the original requirement/mockup.
-- If pixels don't match, the task is incomplete.
+- If no screenshot-capable tool is available, the agent must report visual verification as not verified and provide manual verification steps; it must not claim a visual match.
 
 ## Article III: Agent Independence
 **Build for Parallelism.**

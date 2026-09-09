@@ -49,6 +49,7 @@ This application has currently only been tested on a **Helix Floor** with **Firm
 - **AI Integration**: Google Gemini API
 - **Google Antigravity**: [Google Antigravity](https://antigravity.google/)
 - **Spec Kit for Google Antigravity**: [spec-kit-antigravity](https://github.com/waveupHQ/spec-kit-antigravity)
+- **OpenCode workflow**: Project-local commands in [.opencode/commands/](.opencode/commands/) documented in [docs/opencode.md](docs/opencode.md)
 
 
 ## 👷‍♂️Getting Started (Build from source)
