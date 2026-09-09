@@ -577,6 +577,7 @@ func (c *Client) ChatPresetEngineer(ctx context.Context, rig *RigDescription, pr
 	return preset, nil
 }
 
+// applyVariax configures global and per-snapshot Variax models, tuning, controller metadata, and hardware type for a preset.
 func applyVariax(preset *helix.Preset, rig *RigDescription, hardwareModel string) {
 	data, ok := (*preset)["data"].(map[string]interface{})
 	if !ok {
@@ -860,7 +861,7 @@ func applyVariax(preset *helix.Preset, rig *RigDescription, hardwareModel string
 	}
 }
 
-// resolveParamKey maps an AI-provided parameter name to a catalog key.
+// It matches exact names, known aliases, and case-insensitive equivalents.
 func resolveParamKey(defaults map[string]interface{}, requested string) (string, bool) {
 	if _, ok := defaults[requested]; ok {
 		return requested, true
@@ -891,7 +892,8 @@ func resolveParamKey(defaults map[string]interface{}, requested string) (string,
 	return "", false
 }
 
-// parameterLimits returns the hardware limits declared for a catalog parameter.
+// parameterLimits returns the minimum and maximum hardware limits for a catalog parameter.
+// The boolean reports whether both limits are available.
 func parameterLimits(entry helix.CatalogEntry, key string) (float64, float64, bool) {
 	dict, ok := entry.Data["Controller_Dict"].(map[string]interface{})
 	if !ok {
@@ -906,7 +908,8 @@ func parameterLimits(entry helix.CatalogEntry, key string) (float64, float64, bo
 	return min, max, minOK && maxOK
 }
 
-// clampParam keeps numeric parameters within the hardware catalog limits.
+// clampParam restricts a numeric parameter to the limits defined in the hardware catalog.
+// Values that are not numeric or have no catalog limits are returned unchanged.
 func clampParam(entry helix.CatalogEntry, key string, value interface{}) interface{} {
 	number, ok := value.(float64)
 	if !ok {
@@ -953,7 +956,7 @@ func normalizeParamType(entry helix.CatalogEntry, key string, value interface{})
 	return value
 }
 
-// snapshotController builds a hardware-compatible snapshot controller definition.
+// snapshotController creates a snapshot controller definition using the parameter's catalog limits when available.
 func snapshotController(entry helix.CatalogEntry, key string) map[string]interface{} {
 	min, max := 0.0, 1.0
 	if catalogMin, catalogMax, ok := parameterLimits(entry, key); ok {
@@ -967,7 +970,7 @@ func snapshotController(entry helix.CatalogEntry, key string) map[string]interfa
 	}
 }
 
-// sanitizeParam applies model-independent safety limits before catalog validation.
+// sanitizeParam applies safety normalization and limits to numeric effect parameters before catalog validation. Reverb decay is capped at 0.7, and delay feedback is capped at 0.75.
 func sanitizeParam(internalID, k string, v interface{}) interface{} {
 	val, isFloat := v.(float64)
 	if !isFloat {
