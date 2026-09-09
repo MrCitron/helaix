@@ -1,6 +1,6 @@
 import React from 'react';
 import { GxChatSoundEngineer, GxChatPresetEngineer, GxSaveFile } from '../../wailsjs/go/main/App';
-import { useI18n } from '../i18n';
+import { isDefaultChatName, useI18n } from '../i18n';
 import DesignVisualizer from './DesignVisualizer';
 import MessageVisualizer from './MessageVisualizer';
 import ChatInput from './ChatInput';
@@ -43,17 +43,19 @@ const MainScreen = ({ config, chatData, onUpdateChat, onNewChat }) => {
         })).filter(m => m.content !== "");
     };
 
-    const handleSendMessage = async (text) => {
+    const handleSendMessage = async (text, retryErrorId = null) => {
         if (!text || !chatData) return;
 
-        const isFirstUserMsg = messages.filter(m => m.role === 'user').length === 0;
+        const isFirstUserMsg = !retryErrorId && messages.filter(m => m.role === 'user').length === 0;
         if (isFirstUserMsg) {
             const shortName = text.substring(0, 30).trim() + (text.length > 30 ? "..." : "");
             onUpdateChat(chat => ({ ...chat, name: shortName }));
         }
 
         const userMsg = { id: Date.now(), role: 'user', content: text };
-        const updatedMessages = [...messages, userMsg];
+        const updatedMessages = retryErrorId
+            ? messages.filter(message => message.id !== retryErrorId)
+            : [...messages, userMsg];
 
         onUpdateChat(chat => ({
             ...chat,
@@ -85,7 +87,7 @@ const MainScreen = ({ config, chatData, onUpdateChat, onNewChat }) => {
                     role: 'assistant',
                     agent: 'preset_engineer',
                     preset: preset,
-                    content: "I've refined the technical preset based on your feedback."
+                    content: t('chat.refinedTechnicalPreset')
                 };
                 onUpdateChat(chat => ({
                     ...chat,
@@ -95,10 +97,11 @@ const MainScreen = ({ config, chatData, onUpdateChat, onNewChat }) => {
         } catch (err) {
             onUpdateChat(chat => ({
                 ...chat,
-                messages: [...updatedMessages, {
-                    id: Date.now() + 2,
-                    role: 'assistant',
-                    error: "AI failed: " + err
+                        messages: [...updatedMessages, {
+                            id: Date.now() + 2,
+                            role: 'assistant',
+                            error: t('chat.errors.aiFailed') + err,
+                            retryText: text
                 }]
             }));
         } finally {
@@ -120,7 +123,7 @@ const MainScreen = ({ config, chatData, onUpdateChat, onNewChat }) => {
                 )
             }));
         } catch (err) {
-            alert("Build failed: " + err);
+            alert(t('chat.errors.buildFailed') + err);
         } finally {
             setLoading(false);
         }
@@ -135,7 +138,7 @@ const MainScreen = ({ config, chatData, onUpdateChat, onNewChat }) => {
             setLastExportPath(filePath);
             setShowExportModal(true);
         } catch (err) {
-            alert("Export failed: " + err);
+            alert(t('chat.errors.exportFailed') + err);
         } finally {
             setLoading(false);
         }
@@ -171,14 +174,14 @@ const MainScreen = ({ config, chatData, onUpdateChat, onNewChat }) => {
                     </div>
                     <div className="min-w-0">
                         <h2 className="text-slate-900 dark:text-white text-base font-bold leading-tight truncate">
-                            {chatData.name || t('chat.currentChat')}
+                            {isDefaultChatName(chatData.name) ? t('newChatName') : chatData.name || t('chat.currentChat')}
                         </h2>
                         <div className="flex items-center gap-2">
                             <span className="text-primary text-[10px] font-bold uppercase tracking-widest">
                                 {t('chat.aiName')}
                             </span>
                             <span className="text-slate-400 dark:text-[#2b3d41] text-[10px]">•</span>
-                            <p className="text-slate-600 dark:text-text-muted text-[10px]">Active Discussion</p>
+                            <p className="text-slate-600 dark:text-text-muted text-[10px]">{t('chat.activeDiscussion')}</p>
                         </div>
                     </div>
                 </div>
@@ -206,8 +209,8 @@ const MainScreen = ({ config, chatData, onUpdateChat, onNewChat }) => {
                                         ? 'bg-slate-100 dark:bg-border-dark text-slate-900 dark:text-white/90 rounded-bl-none'
                                         : 'bg-primary/10 border border-primary/20 text-slate-900 dark:text-white rounded-br-none'
                                         }`}>
-                                        {msg.content && <p className="whitespace-pre-wrap break-words">{msg.content}</p>}
-                                        {msg.hint && <p className="mt-2 text-slate-500 dark:text-text-secondary text-xs italic">{msg.hint}</p>}
+                                        {(msg.id === 'welcome' ? t('chat.welcome') : msg.content) && <p className="whitespace-pre-wrap break-words">{msg.id === 'welcome' ? t('chat.welcome') : msg.content}</p>}
+                                        {(msg.id === 'welcome' ? t('chat.welcomeHint') : msg.hint) && <p className="mt-2 text-slate-500 dark:text-text-secondary text-xs italic">{msg.id === 'welcome' ? t('chat.welcomeHint') : msg.hint}</p>}
 
                                         {(msg.design || msg.preset) && (
                                             <div className="mt-4 pt-4 border-t border-slate-300 dark:border-indigo-800/50">
@@ -222,7 +225,14 @@ const MainScreen = ({ config, chatData, onUpdateChat, onNewChat }) => {
 
                                         {msg.error && (
                                             <div className="text-red-400 bg-red-900/20 p-2 rounded border border-red-900/50 text-sm">
-                                                {msg.error}
+                                                <p>{msg.error}</p>
+                                                {msg.retryText && <button
+                                                    onClick={() => handleSendMessage(msg.retryText, msg.id)}
+                                                    disabled={loading}
+                                                    className="mt-2 rounded border border-red-400/50 px-2 py-1 text-xs font-medium hover:bg-red-900/30 disabled:opacity-50"
+                                                >
+                                                    {t('chat.retry')}
+                                                </button>}
                                             </div>
                                         )}
                                     </div>

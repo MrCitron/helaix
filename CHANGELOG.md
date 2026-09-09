@@ -5,6 +5,36 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.12.0] - 2026-09-06
+
+### Added
+- **Curated Tone Recipes**: Clean, crunch, tight-metal, ambient, and acoustic rigs now start from catalog-validated models and practical baseline parameters.
+- **Golden Recipe Fixtures**: Automated coverage verifies recipe models, key parameters, DSP budget, preset validation, and export serialization.
+
+### Changed
+- **Reproducible Wails Builds**: CI pins Wails CLI v2.15.0, which packages the macOS app correctly with the project's Go 1.24 toolchain.
+
+## [0.11.0] - 2026-09-06
+
+### Added
+- **Codex Parameter Control**: Codex can now set validated numeric, boolean, and string block parameters to dial in a preset rather than relying on catalog defaults alone.
+- **Live Schema Verification**: An opt-in ChatGPT Codex test verifies that dynamic block parameters work with the real CLI session.
+
+### Changed
+- **Build Hygiene**: CI rejects generated frontend hash files if they are accidentally added to version control.
+
+## [0.10.0] - 2026-09-06
+
+### Added
+- **DSP-Safe Candidate Planning**: Tone-ranked Helix model combinations now stay within the per-path DSP budget before preset generation.
+- **Validation-Guided Recovery**: Gemini and Codex receive deterministic correction instructions and retry one rejected block mapping with the exact validation context.
+
+### Changed
+- **Stricter Preset Engineering Prompts**: Providers now preserve the validated model/path combination, chain order, and dual-DSP path progression unless the user explicitly requests a change.
+
+### Fixed
+- **Invalid Mapping Retries**: Codex retries now include the rejected JSON response so the provider can return a complete corrected mapping.
+
 ## [0.9.0] - 2026-02-03
 
 ### Added

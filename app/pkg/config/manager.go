@@ -1,7 +1,9 @@
 package config
 
 import (
+	"HelAIx/pkg/provider"
 	"encoding/json"
+	"fmt"
 	"os"
 	"path/filepath"
 	"sync"
@@ -9,8 +11,9 @@ import (
 
 type AppConfig struct {
 	ApiKey              string `json:"api_key"`
-	Provider            string `json:"provider"` // "Google" = Gemini API (ai.google.dev), "Vertex" = Vertex AI
-	Model               string `json:"model"`    // e.g., "gemini-2.5-flash", "gemini-3-flash-preview"
+	Provider            string `json:"provider"`
+	Model               string `json:"model"` // e.g., "gemini-2.5-flash", "gemini-3-flash-preview"
+	CodexCLIPath        string `json:"codex_cli_path"`
 	OutputPath          string `json:"output_path"`
 	HardwareTarget      string `json:"hardware_target"`
 	DeleteNoConfirm     bool   `json:"delete_no_confirm"`
@@ -40,7 +43,7 @@ func NewManager() *Manager {
 	m := &Manager{
 		configPath: configPath,
 		config: AppConfig{
-			Provider:            "Google",           // Gemini API (not Vertex AI)
+			Provider:            provider.Gemini,
 			Model:               "gemini-2.5-flash", // Updated to current stable model
 			OutputPath:          defaultOutPath,
 			HardwareTarget:      "Helix Floor",
@@ -50,6 +53,7 @@ func NewManager() *Manager {
 		},
 	}
 	m.Load()
+	m.config.Provider = NormalizeProvider(m.config.Provider)
 	return m
 }
 
@@ -68,6 +72,10 @@ func (m *Manager) Save(cfg AppConfig) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
+	cfg.Provider = NormalizeProvider(cfg.Provider)
+	if !IsSupportedProvider(cfg.Provider) {
+		return fmt.Errorf("unsupported AI provider %q", cfg.Provider)
+	}
 	m.config = cfg
 
 	// Ensure dir exists
@@ -87,4 +95,18 @@ func (m *Manager) Get() AppConfig {
 	m.mu.RLock()
 	defer m.mu.RUnlock()
 	return m.config
+}
+
+func NormalizeProvider(value string) string {
+	if value == "" || value == "Google" {
+		return provider.Gemini
+	}
+	if value == "codex_oauth" {
+		return provider.CodexCLI
+	}
+	return value
+}
+
+func IsSupportedProvider(value string) bool {
+	return value == provider.Gemini || value == provider.CodexCLI
 }

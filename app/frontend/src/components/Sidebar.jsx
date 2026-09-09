@@ -1,5 +1,5 @@
 import React from 'react';
-import { useI18n } from '../i18n';
+import { isDefaultChatName, useI18n } from '../i18n';
 
 const Sidebar = ({ currentView, onViewChange, recentChats = [], currentChatId, onNewChat, onSwitchChat, onDeleteChat, isCollapsed, onToggleCollapse }) => {
     const { t } = useI18n();
@@ -76,9 +76,9 @@ const Sidebar = ({ currentView, onViewChange, recentChats = [], currentChatId, o
                                         : 'text-slate-600 dark:text-text-secondary hover:bg-slate-100 dark:hover:bg-surface-dark hover:text-slate-900 dark:hover:text-white'
                                     }`}
                                 onClick={() => onSwitchChat(chat.id)}
-                                title={isCollapsed ? chat.name : ''}
+                                title={isCollapsed ? (isDefaultChatName(chat.name) ? t('newChatName') : chat.name) : ''}
                             >
-                                {!isCollapsed && <span className="truncate flex-1">{chat.name}</span>}
+                                {!isCollapsed && <span className="truncate flex-1">{isDefaultChatName(chat.name) ? t('newChatName') : chat.name}</span>}
                                 {isCollapsed ? (
                                     <span className={`material-symbols-outlined text-[18px] ${currentChatId === chat.id && currentView === 'chat' ? 'text-primary' : ''}`}>chat</span>
                                 ) : (
@@ -94,7 +94,7 @@ const Sidebar = ({ currentView, onViewChange, recentChats = [], currentChatId, o
                         ))}
                         {recentChats.length === 0 && !isCollapsed && (
                             <p className="px-3 py-4 text-[11px] text-slate-500 dark:text-text-muted italic text-center border border-dashed border-slate-300 dark:border-border-dark rounded-xl mr-2">
-                                No history yet
+                                {t('nav.noHistory')}
                             </p>
                         )}
                         {recentChats.length === 0 && isCollapsed && (

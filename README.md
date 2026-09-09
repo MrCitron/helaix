@@ -29,8 +29,9 @@ Getting started with HelAIx is easy:
 3. **Configure LLM**:
    - Open the **Settings** page.
    - Select your LLM provider and model. 
-   - *Note: Currently, only **Google Gemini** is supported.*
-4. **API Key**: Add your Google Gemini API key. You can get one for free (within limits) at the [Google AI Studio](https://aistudio.google.com/).
+    - Select **Google Gemini API** or **Codex - ChatGPT subscription**.
+4. **Gemini**: Add a Google Gemini API key when using Gemini. You can get one from [Google AI Studio](https://aistudio.google.com/).
+5. **Codex subscription**: Install the official Codex CLI, run `codex login` in Terminal, and complete the browser-based **ChatGPT** sign-in. HelAIx detects the CLI and its login method without reading credentials. This provider uses the Codex limits included in your ChatGPT plan, not OpenAI API billing.
 5. **Finalize**: Review the other settings like your default export folder and "Helix Model" to match your physical hardware.
 
 ## ⚠️ Disclaimers
@@ -61,6 +62,26 @@ If you prefer to build the application yourself:
 - [Go](https://go.dev/dl/) 1.21+
 - [Node.js](https://nodejs.org/) & NPM
 - [Wails CLI](https://wails.io/docs/gettingstarted/installation)
+- [Codex CLI](https://learn.chatgpt.com/docs/codex/cli) only when using the ChatGPT subscription provider
+
+### Codex CLI subscription provider
+
+HelAIx invokes the official local Codex CLI through `codex exec`; it does not call private endpoints or copy OAuth tokens. Install Codex using OpenAI's official instructions, then sign in from Terminal:
+
+```bash
+codex login
+codex login status
+```
+
+Choose the ChatGPT sign-in flow. If status reports API-key authentication, run `codex logout` and sign in again with ChatGPT. HelAIx removes `OPENAI_API_KEY`, `CODEX_API_KEY`, and `CODEX_ACCESS_TOKEN` from its child process only, so inherited API credentials cannot silently change this provider to paid API usage.
+
+In **Settings**, select **Codex - ChatGPT subscription**. The executable path is auto-detected from `PATH`, Homebrew, npm, Volta, and common macOS locations; it can also be set manually. The **Test connection** button sends one minimal request and consumes Codex plan quota.
+
+HelAIx reads the local Codex catalog with `codex debug models` and offers only entries Codex marks as visible. The current catalog marks `gpt-reserve` (a fast, affordable agentic coding model) and `codex-auto-review` (an automatic approval-review model) as hidden, so HelAIx excludes them from the picker. This reflects Codex's catalog visibility, not an entitlement decision made by HelAIx.
+
+For each request, HelAIx creates a temporary `0700` Git workspace, uses `codex exec --ephemeral --sandbox read-only`, sends the prompt on standard input, requests a JSON schema, and deletes the workspace after completion. HelAIx alone writes and exports `.hlx` files.
+
+Codex CLI's strict structured-output schema does not permit free-form parameter maps. The Codex provider therefore maps validated Helix blocks and paths, then uses HelAIx catalog defaults for block parameters. Gemini retains its existing parameter and snapshot override behavior.
 
 ### Installation
 

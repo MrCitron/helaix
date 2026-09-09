@@ -1,9 +1,13 @@
 package gemini
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
+	"io"
+	"strings"
+	"unicode/utf8"
 
 	"google.golang.org/genai"
 )
@@ -141,11 +145,143 @@ func (c *Client) ChatSoundEngineer(ctx context.Context, history []ChatMessage, h
 	}
 
 	jsonText := resp.Candidates[0].Content.Parts[0].Text
+	return ParseRigDescriptionJSON(jsonText)
+}
 
+// ParseRigDescriptionJSON validates the structured design returned by any LLM provider.
+func ParseRigDescriptionJSON(jsonText string) (*RigDescription, error) {
 	var result RigDescription
-	if err := json.Unmarshal([]byte(jsonText), &result); err != nil {
+	decoder := json.NewDecoder(bytes.NewBufferString(jsonText))
+	decoder.DisallowUnknownFields()
+	if err := decoder.Decode(&result); err != nil {
 		return nil, fmt.Errorf("failed to parse Sound Engineer JSON: %v. Raw: %s", err, jsonText)
+	}
+	var extra interface{}
+	if err := decoder.Decode(&extra); err != io.EOF {
+		return nil, fmt.Errorf("Sound Engineer returned multiple JSON values")
+	}
+	if err := validateRigDescription(&result); err != nil {
+		return nil, fmt.Errorf("invalid Sound Engineer response: %w", err)
 	}
 
 	return &result, nil
+}
+
+func validateRigDescription(rig *RigDescription) error {
+	if strings.TrimSpace(rig.SuggestedName) == "" || utf8.RuneCountInString(rig.SuggestedName) > 16 {
+		return fmt.Errorf("suggested_name must contain 1 to 16 characters")
+	}
+	if strings.TrimSpace(rig.Explanation) == "" {
+		return fmt.Errorf("explanation is required")
+	}
+	if strings.TrimSpace(rig.GuitarModel) == "" || strings.TrimSpace(rig.Tuning) == "" {
+		return fmt.Errorf("guitar_model and tuning are required")
+	}
+	if len(rig.Chain) == 0 {
+		return fmt.Errorf("chain is required")
+	}
+
+	allowedTypes := map[string]bool{
+		"pedal":      true,
+		"amp":        true,
+		"cab":        true,
+		"modulation": true,
+		"delay":      true,
+		"reverb":     true,
+		"variax":     true,
+	}
+	chainNames := make(map[string]struct{}, len(rig.Chain))
+	mappableNames := make(map[string]struct{}, len(rig.Chain))
+	ampCount, cabCount := 0, 0
+	lastStage := -1
+	for index, component := range rig.Chain {
+		if strings.TrimSpace(component.Name) == "" || strings.TrimSpace(component.Description) == "" || strings.TrimSpace(component.Settings) == "" {
+			return fmt.Errorf("each chain component requires name, description, and settings")
+		}
+		if !allowedTypes[component.Type] {
+			return fmt.Errorf("unsupported chain component type %q", component.Type)
+		}
+		if _, exists := chainNames[component.Name]; exists {
+			return fmt.Errorf("duplicate chain component %q", component.Name)
+		}
+		chainNames[component.Name] = struct{}{}
+
+		if component.Type == "variax" {
+			if index != 0 {
+				return fmt.Errorf("variax must be the first chain component")
+			}
+			continue
+		}
+
+		stage := componentStage(component.Type)
+		if stage < lastStage {
+			return fmt.Errorf("chain is out of order at component %q", component.Name)
+		}
+		lastStage = stage
+		mappableNames[component.Name] = struct{}{}
+		if component.Type == "amp" {
+			ampCount++
+		}
+		if component.Type == "cab" {
+			cabCount++
+		}
+	}
+	if ampCount != 1 || cabCount != 1 {
+		return fmt.Errorf("chain must include exactly one amp and one cab")
+	}
+
+	if len(rig.Snapshots) > 4 {
+		return fmt.Errorf("at most four snapshots are supported")
+	}
+	snapshotNames := make(map[string]struct{}, len(rig.Snapshots))
+	usedMappableNames := make(map[string]struct{}, len(mappableNames))
+	for _, snapshot := range rig.Snapshots {
+		if strings.TrimSpace(snapshot.Name) == "" {
+			return fmt.Errorf("snapshot name is required")
+		}
+		if _, exists := snapshotNames[snapshot.Name]; exists {
+			return fmt.Errorf("duplicate snapshot name %q", snapshot.Name)
+		}
+		snapshotNames[snapshot.Name] = struct{}{}
+		activeNames := make(map[string]struct{}, len(snapshot.ActiveBlocks))
+		for _, blockName := range snapshot.ActiveBlocks {
+			if _, exists := chainNames[blockName]; !exists {
+				return fmt.Errorf("snapshot %q references unknown block %q", snapshot.Name, blockName)
+			}
+			if _, exists := activeNames[blockName]; exists {
+				return fmt.Errorf("snapshot %q repeats active block %q", snapshot.Name, blockName)
+			}
+			activeNames[blockName] = struct{}{}
+			if _, mappable := mappableNames[blockName]; mappable {
+				usedMappableNames[blockName] = struct{}{}
+			}
+		}
+		for blockName := range snapshot.Params {
+			if _, exists := chainNames[blockName]; !exists {
+				return fmt.Errorf("snapshot %q has parameters for unknown block %q", snapshot.Name, blockName)
+			}
+		}
+	}
+	if len(rig.Snapshots) > 0 {
+		for blockName := range mappableNames {
+			if _, used := usedMappableNames[blockName]; !used {
+				return fmt.Errorf("chain component %q is not active in any snapshot", blockName)
+			}
+		}
+	}
+
+	return nil
+}
+
+func componentStage(componentType string) int {
+	switch componentType {
+	case "pedal":
+		return 0
+	case "amp":
+		return 1
+	case "cab":
+		return 2
+	default:
+		return 3
+	}
 }

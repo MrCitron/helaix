@@ -1,0 +1,183 @@
+[
+  {
+    "name": "clean",
+    "rig": {
+      "suggested_name": "CLEAN STUDIO",
+      "explanation": "Clean, articulate studio tone with natural space.",
+      "guitar_model": "Fender Stratocaster",
+      "tuning": "Standard",
+      "chain": [
+        {"type": "amp", "name": "Fender Twin clean amp", "description": "High-headroom clean foundation.", "settings": "Clean, crystal clear, low gain"},
+        {"type": "cab", "name": "Open clean cab", "description": "Open-back clean response.", "settings": "2x12 open back"},
+        {"type": "reverb", "name": "Natural spring reverb", "description": "Subtle studio ambience.", "settings": "Short spring reverb"}
+      ]
+    },
+    "expected_hints": {
+      "Fender Twin clean amp": ["clean", "deluxe", "twin", "princess", "rivet", "jazz", "fullerton"],
+      "Natural spring reverb": ["spring"]
+    },
+    "expected_recipe": {
+      "models": {
+        "Fender Twin clean amp": "US Deluxe Nrm",
+        "Open clean cab": "1x12 US Deluxe",
+        "Natural spring reverb": "HD2_Reverb63Spring"
+      },
+      "params": {
+        "Fender Twin clean amp": {"Drive": 0.25, "Mid": 0.55},
+        "Open clean cab": {"LowCut": 90, "HighCut": 9000},
+        "Natural spring reverb": {"Decay": 0.32, "Mix": 0.18}
+      }
+    }
+  },
+  {
+    "name": "crunch",
+    "rig": {
+      "suggested_name": "BRIT CRUNCH",
+      "explanation": "Responsive British crunch for classic rock rhythm.",
+      "guitar_model": "Gibson Les Paul Standard",
+      "tuning": "Standard",
+      "chain": [
+        {"type": "pedal", "name": "Klon-style boost", "description": "Push the amp without excessive saturation.", "settings": "Low drive, level boost"},
+        {"type": "amp", "name": "Marshall Plexi crunch amp", "description": "Classic British crunch.", "settings": "Crunch, vintage rock, medium gain"},
+        {"type": "cab", "name": "British 4x12 cab", "description": "Focused classic rock speaker response.", "settings": "4x12 British cab"},
+        {"type": "reverb", "name": "Short room reverb", "description": "Keep the rhythm dry and present.", "settings": "Short room"}
+      ]
+    },
+    "expected_hints": {
+      "Marshall Plexi crunch amp": ["plexi", "brit", "matchstick", "tweed", "essex", "a30", "rocker"]
+    },
+    "expected_recipe": {
+      "models": {
+        "Klon-style boost": "Prize Drive",
+        "Marshall Plexi crunch amp": "Brit Plexi Jump",
+        "British 4x12 cab": "4x12 Brit V30",
+        "Short room reverb": "HD2_ReverbRoom"
+      },
+      "params": {
+        "Klon-style boost": {"Bass Cut": true, "Drive": 0.18, "Level": 0.65},
+        "Marshall Plexi crunch amp": {"BrtDrive": 0.48, "NrmDrive": 0.42},
+        "British 4x12 cab": {"LowCut": 90, "HighCut": 8500},
+        "Short room reverb": {"Decay": 0.22, "Mix": 0.12}
+      }
+    }
+  },
+  {
+    "name": "high-gain",
+    "rig": {
+      "suggested_name": "MODERN LEAD",
+      "explanation": "Singing high-gain lead with a tight low end.",
+      "guitar_model": "Gibson Les Paul Standard",
+      "tuning": "Drop D",
+      "chain": [
+        {"type": "pedal", "name": "Tight lead boost", "description": "Tighten the low end before the amp.", "settings": "High gain lead boost"},
+        {"type": "amp", "name": "Modern high-gain lead amp", "description": "Saturated modern lead voice.", "settings": "High-gain, modern, tight lead"},
+        {"type": "cab", "name": "Modern 4x12 cab", "description": "Focused high-gain speaker response.", "settings": "4x12 closed back"},
+        {"type": "delay", "name": "Lead digital delay", "description": "Short lead repeats.", "settings": "Digital delay, low feedback"}
+      ]
+    },
+    "expected_hints": {
+      "Modern high-gain lead amp": ["lead", "rectifire", "vitriol", "panama", "ubersonic", "badonk", "fatality", "placater", "revv", "meteor", "solo", "cartographer"]
+    }
+  },
+  {
+    "name": "ambient",
+    "rig": {
+      "suggested_name": "AMBIENT WASH",
+      "explanation": "Wide clean ambient texture with shimmer and motion.",
+      "guitar_model": "Fender Stratocaster",
+      "tuning": "Standard",
+      "chain": [
+        {"type": "amp", "name": "Clean ambient amp", "description": "Clean platform for spacious effects.", "settings": "Clean, low gain"},
+        {"type": "cab", "name": "Wide clean cab", "description": "Neutral speaker response.", "settings": "2x12 open back"},
+        {"type": "modulation", "name": "Ambient chorus", "description": "Slow width and movement.", "settings": "Wide chorus, slow rate"},
+        {"type": "delay", "name": "Ambient shimmer delay", "description": "Spacious repeats that bloom.", "settings": "Ambient, ethereal, shimmer"},
+        {"type": "reverb", "name": "Ambient shimmer reverb", "description": "Long atmospheric reverb.", "settings": "Ambient, ethereal, shimmer"}
+      ]
+    },
+    "expected_hints": {
+      "Ambient shimmer delay": ["cosmos", "heliosphere", "adriatic", "tape"],
+      "Ambient shimmer reverb": ["shimmer", "glitz", "ganymede", "plateaux", "searchlights", "particle", "cave"]
+    },
+    "expected_recipe": {
+      "models": {
+        "Clean ambient amp": "US Deluxe Nrm",
+        "Wide clean cab": "1x12 US Deluxe",
+        "Ambient chorus": "70s Chorus",
+        "Ambient shimmer delay": "Cosmos Echo",
+        "Ambient shimmer reverb": "Glitz"
+      },
+      "params": {
+        "Clean ambient amp": {"Drive": 0.2, "Treble": 0.62},
+        "Wide clean cab": {"LowCut": 100, "HighCut": 9500},
+        "Ambient chorus": {"ChorusIntensity": 0.32, "Mix": 0.28},
+        "Ambient shimmer delay": {"Time": 0.62, "Feedback": 0.48, "Mix": 0.32},
+        "Ambient shimmer reverb": {"Decay": 0.68, "Mix": 0.38, "Mod Mix": 0.42}
+      }
+    }
+  },
+  {
+    "name": "tight-metal",
+    "rig": {
+      "suggested_name": "TIGHT METAL",
+      "explanation": "Tight modern metal rhythm with controlled low end.",
+      "guitar_model": "Gibson Les Paul Standard",
+      "tuning": "Drop C",
+      "chain": [
+        {"type": "pedal", "name": "Metal tight boost", "description": "Tighten modern metal rhythm.", "settings": "Tight high-gain boost"},
+        {"type": "amp", "name": "Modern metal amp", "description": "Aggressive high-gain rhythm.", "settings": "Metal, modern, high-gain, tight"},
+        {"type": "cab", "name": "Tight metal 4x12 cab", "description": "Closed-back metal cabinet.", "settings": "4x12 closed back"},
+        {"type": "reverb", "name": "Short metal room", "description": "Minimal space without washing out the rhythm.", "settings": "Short room"}
+      ]
+    },
+    "expected_hints": {
+      "Modern metal amp": ["lead", "rectifire", "vitriol", "panama", "ubersonic", "badonk", "fatality", "placater", "revv", "meteor", "solo", "cartographer"]
+    },
+    "expected_recipe": {
+      "models": {
+        "Metal tight boost": "Scream 808",
+        "Modern metal amp": "Cali Rectifire",
+        "Tight metal 4x12 cab": "4x12 Cali V30",
+        "Short metal room": "HD2_ReverbRoom"
+      },
+      "params": {
+        "Metal tight boost": {"Gain": 0.1, "Tone": 0.58},
+        "Modern metal amp": {"Drive": 0.55, "Bass": 0.35, "Presence": 0.42},
+        "Tight metal 4x12 cab": {"LowCut": 95, "HighCut": 8000},
+        "Short metal room": {"Decay": 0.16, "Mix": 0.08}
+      }
+    }
+  },
+  {
+    "name": "acoustic",
+    "rig": {
+      "suggested_name": "ACOUSTIC AIR",
+      "explanation": "Natural acoustic tone with corrective EQ and subtle air.",
+      "guitar_model": "Martin D-28 Acoustic",
+      "tuning": "Standard",
+      "chain": [
+        {"type": "variax", "name": "Line6 Variax", "description": "Acoustic guitar input model.", "settings": "Martin D-28 Acoustic"},
+        {"type": "pedal", "name": "Parametric EQ for acoustic", "description": "Correct piezo harshness and low-end buildup.", "settings": "Acoustic EQ, transparent"},
+        {"type": "amp", "name": "Clean acoustic amp", "description": "Neutral clean acoustic platform.", "settings": "Clean, low gain"},
+        {"type": "cab", "name": "Full range acoustic cab", "description": "Natural full-range speaker response.", "settings": "Full range cabinet"},
+        {"type": "reverb", "name": "Natural acoustic room", "description": "Subtle air around the acoustic signal.", "settings": "Short room"}
+      ]
+    },
+    "expected_hints": {
+      "Parametric EQ for acoustic": ["parametric"]
+    },
+    "expected_recipe": {
+      "models": {
+        "Parametric EQ for acoustic": "Parametric",
+        "Clean acoustic amp": "US Deluxe Nrm",
+        "Full range acoustic cab": "1x12 US Deluxe",
+        "Natural acoustic room": "HD2_ReverbRoom"
+      },
+      "params": {
+        "Parametric EQ for acoustic": {"LowCut": 80, "MidFreq": 2800, "MidGain": -2.5},
+        "Clean acoustic amp": {"Drive": 0.15, "Treble": 0.58},
+        "Full range acoustic cab": {"LowCut": 85, "HighCut": 11000},
+        "Natural acoustic room": {"Decay": 0.28, "Mix": 0.16}
+      }
+    }
+  }
+]

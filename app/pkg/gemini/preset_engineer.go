@@ -2,32 +2,65 @@ package gemini
 
 import (
 	"HelAIx/pkg/helix"
+	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
-	"os"
+	"io"
+	"math"
+	"sort"
 	"strings"
 
 	"google.golang.org/genai"
 )
 
+type builderBlock struct {
+	Name      string                 `json:"name"`
+	ModelName string                 `json:"model_name"`
+	Path      int                    `json:"path"`
+	Params    map[string]interface{} `json:"params"`
+}
+
+type builderResponse struct {
+	Blocks []builderBlock `json:"blocks"`
+}
+
+const plannerBeamWidth = 256
+
+type rankedComponentCandidates struct {
+	component       RigComponent
+	candidates      []helix.CatalogEntry
+	preferredModel  string
+	preferredParams map[string]interface{}
+}
+
+type plannedBlock struct {
+	name      string
+	modelName string
+	path      int
+	dsp       float64
+	params    map[string]interface{}
+}
+
+type recommendedCandidatePlan struct {
+	blocks []plannedBlock
+	dsp    [2]float64
+}
+
 // ChatPresetEngineer takes the abstract rig and maps it to specific Helix Blocks, or refines an existing implementation
 func (c *Client) ChatPresetEngineer(ctx context.Context, rig *RigDescription, presetName string, history []ChatMessage, hardware string, defaultExp int, variaxEnabled bool, hardwareModel string) (*helix.Preset, error) {
-	// 1. Prepare Catalog Context
-	helix.DB.EnsureLoaded()
-
-	// Create a list of available models with their mono DSP costs
-	var availableModels strings.Builder
-	for _, e := range helix.DB.Entries {
-		cost := e.DSPMono
-		if cost == 0 {
-			cost = 3.0 // Reasonable default
-		}
-		availableModels.WriteString(fmt.Sprintf("- %s (Based on: %s) [DSP: %.1f%%]\n", e.Name, e.BasedOn, cost))
+	// 1. Prepare only the models that can implement each proposed component.
+	availableModels, err := CandidateCatalogForRig(*rig)
+	if err != nil {
+		return nil, err
 	}
 
 	// 2. Hardware Capabilities
-	isDualDSP := strings.Contains(hardware, "Floor") || strings.Contains(hardware, "LT") || strings.Contains(hardware, "Rack")
+	isDualDSP := IsDualDSPHardware(hardware)
+	recommendedPlan, err := RecommendedCandidatePlanForRig(*rig, isDualDSP)
+	if err != nil {
+		return nil, err
+	}
 	dspCapacity := "1 path of 100%"
 	if isDualDSP {
 		dspCapacity = "2 paths (Path 1 and Path 2), each with its own 100% DSP chip. Total 200%."
@@ -41,8 +74,15 @@ func (c *Client) ChatPresetEngineer(ctx context.Context, rig *RigDescription, pr
 	TARGET HARDWARE: %s
 	DSP CAPACITY: %s
 	
-	AVAILABLE MODELS:
+	TOP-RANKED ALLOWED MODELS BY COMPONENT:
 	%s
+
+	%s
+
+	PLANNER RULES:
+	- The recommended plan is a validated combination, not independent suggestions. Copy every name, model_name, and path tuple exactly unless the user explicitly asks to change that component.
+	- Never substitute a model or move a block to another path while retaining the rest of the plan without rechecking the full chain against the allowed candidates and DSP budget.
+	- Return every non-Variax component exactly once, in the rig's chain order. When a dual-DSP plan moves to path 1, do not place later chain blocks back on path 0.
 	
 	CONVERSATION LOGIC:
 	- If the user provides feedback, adjust the technical implementation.
@@ -52,8 +92,8 @@ func (c *Client) ChatPresetEngineer(ctx context.Context, rig *RigDescription, pr
 	DSP MANAGEMENT:
 	- CRITICAL: Physical Helix Units (Floor/Rack) have strict DSP limits.
 	- Each path (Path 1 and Path 2) has its own 100%% budget.
-	- YOU MUST aim for a MAXIMUM of 60-65%% per path to ensure hardware stability. 
-	- If your estimated DSP sum for Path 1 exceeds 60%%, you MUST move the remaining blocks to Path 2 ("path": 1).
+	- The recommended plan is already within the deterministic 65%% per-path budget. Do not estimate or improvise an alternative path allocation.
+	- If user feedback requires a different model, select only an allowed candidate for that component and keep each path at or below 65%%.
 	- High-end Amps, Cabs, and IRs take ~30-40%% each. Poly-FX and Stereo Reverbs/Delays take ~15-25%%.
 	- Path 1 is "path": 0, Path 2 is "path": 1.
 	- If the hardware has only 1 path, use "path": 0 for everything.
@@ -70,7 +110,8 @@ func (c *Client) ChatPresetEngineer(ctx context.Context, rig *RigDescription, pr
 	OUTPUT INSTRUCTIONS:
 	- Return ONLY a JSON object with a "blocks" array.
 	- "name" MUST match exactly the "name" of the component from the Sound Engineer proposal.
-	- "model_name" must match a Name from the list.
+	- "model_name" must match a candidate listed for that exact component; candidates are already ranked for the requested tone.
+	- Use the recommended DSP-safe plan as the exact baseline unless user feedback explicitly requires a change.
 	- "path" must be 0 (Path 1) or 1 (Path 2).
 	
 	OUTPUT FORMAT:
@@ -79,7 +120,7 @@ func (c *Client) ChatPresetEngineer(ctx context.Context, rig *RigDescription, pr
 			{ "name": "Tube Screamer", "model_name": "Scream 808", "path": 0, "params": { "Gain": 0.5 } }
 		]
 	}
-	`, hardware, dspCapacity, availableModels.String())
+	`, hardware, dspCapacity, availableModels, recommendedPlan)
 
 	// Truncate prompt if needed (though Gemini 1.5 Handle this well)
 	if len(sysPrompt) > 100000 {
@@ -129,6 +170,200 @@ func (c *Client) ChatPresetEngineer(ctx context.Context, rig *RigDescription, pr
 	}
 
 	jsonText := resp.Candidates[0].Content.Parts[0].Text
+	preset, buildErr := BuildPresetFromJSON(jsonText, rig, presetName, hardware, defaultExp, variaxEnabled, hardwareModel)
+	if buildErr == nil {
+		return preset, nil
+	}
+
+	contents = append(contents,
+		&genai.Content{Role: "model", Parts: []*genai.Part{{Text: jsonText}}},
+		&genai.Content{Role: "user", Parts: []*genai.Part{{Text: BuilderCorrectionInstruction(buildErr)}}},
+	)
+	retry, err := c.client.Models.GenerateContent(ctx, c.ModelName, contents, config)
+	if err != nil {
+		return nil, fmt.Errorf("preset engineer retry failed: %v", err)
+	}
+	if len(retry.Candidates) == 0 || len(retry.Candidates[0].Content.Parts) == 0 {
+		return nil, fmt.Errorf("empty retry response from Preset Engineer Agent")
+	}
+	preset, retryErr := BuildPresetFromJSON(retry.Candidates[0].Content.Parts[0].Text, rig, presetName, hardware, defaultExp, variaxEnabled, hardwareModel)
+	if retryErr != nil {
+		return nil, fmt.Errorf("preset engineer response remained invalid after retry: %w", retryErr)
+	}
+	return preset, nil
+}
+
+// CandidateCatalogForRig formats the highest-ranked compatible Helix models for each component.
+func CandidateCatalogForRig(rig RigDescription) (string, error) {
+	groups, err := rankedCandidateGroups(rig)
+	if err != nil {
+		return "", err
+	}
+	var catalog strings.Builder
+	for _, group := range groups {
+		catalog.WriteString(fmt.Sprintf("%s [%s, ranked by tone intent]:\n", group.component.Name, group.component.Type))
+		for _, candidate := range group.candidates {
+			name := candidate.Name
+			if name == "" {
+				name = candidate.InternalName
+			}
+			cost := helix.EffectiveDSP(candidate)
+			catalog.WriteString(fmt.Sprintf("- %s (Based on: %s) [DSP: %.1f%%]\n", name, candidate.BasedOn, cost))
+		}
+	}
+	return catalog.String(), nil
+}
+
+// IsDualDSPHardware reports whether the selected Helix hardware supports two DSP paths.
+func IsDualDSPHardware(hardware string) bool {
+	return strings.Contains(hardware, "Floor") || strings.Contains(hardware, "LT") || strings.Contains(hardware, "Rack")
+}
+
+// RecommendedCandidatePlanForRig returns a DSP-safe, tone-ranked starting plan for builders.
+func RecommendedCandidatePlanForRig(rig RigDescription, isDualDSP bool) (string, error) {
+	plan, err := recommendedPlanForRig(rig, isDualDSP)
+	if err != nil {
+		return "", err
+	}
+	var text strings.Builder
+	text.WriteString("RECOMMENDED DSP-SAFE STARTING PLAN:\n")
+	for _, block := range plan.blocks {
+		text.WriteString(fmt.Sprintf("- %s -> %s (path %d, DSP %.1f%%, params: %s)\n", block.name, block.modelName, block.path, block.dsp, plannedParamsText(block.params)))
+	}
+	text.WriteString(fmt.Sprintf("Path 0 total: %.1f%% DSP\n", plan.dsp[0]))
+	if isDualDSP {
+		text.WriteString(fmt.Sprintf("Path 1 total: %.1f%% DSP\n", plan.dsp[1]))
+	}
+	return text.String(), nil
+}
+
+// BuilderCorrectionInstruction tells a provider how to replace a rejected block mapping.
+func BuilderCorrectionInstruction(validationErr error) string {
+	return fmt.Sprintf(`Your previous JSON was rejected by deterministic Helix validation: %v.
+Return a complete replacement JSON object only, with a full "blocks" array; do not return a patch, explanation, or extra keys.
+- Include every non-Variax rig component exactly once and in chain order.
+- Use only the exact allowed model names and the recommended DSP-safe model/path tuples unless the requested change requires a different allowed candidate.
+- Keep each path at or below 65%% DSP. Once the chain moves to path 1, do not move later blocks back to path 0.`, validationErr)
+}
+
+func rankedCandidateGroups(rig RigDescription) ([]rankedComponentCandidates, error) {
+	groups := make([]rankedComponentCandidates, 0, len(rig.Chain))
+	recipe := curatedRecipeForRig(rig)
+	for _, component := range rig.Chain {
+		if component.Type == "variax" {
+			continue
+		}
+		intent := strings.Join([]string{component.Name, component.Description, component.Settings}, " ")
+		candidates := helix.RankedCandidatesForComponent(component.Type, intent, helix.PromptCandidateLimit)
+		if len(candidates) == 0 {
+			return nil, fmt.Errorf("no Helix candidates available for component %q of type %q", component.Name, component.Type)
+		}
+		group := rankedComponentCandidates{component: component, candidates: candidates}
+		if preferred, ok := recipe.blockFor(component.Type); ok {
+			entry, found := helix.DB.FindByRealName(preferred.modelName)
+			if found && helix.IsCompatibleComponentModel(component.Type, entry) {
+				group.candidates = preferCandidate(candidates, entry)
+				group.preferredModel = preferred.modelName
+				group.preferredParams = preferred.params
+			}
+		}
+		groups = append(groups, group)
+	}
+	return groups, nil
+}
+
+func preferCandidate(candidates []helix.CatalogEntry, preferred helix.CatalogEntry) []helix.CatalogEntry {
+	ordered := make([]helix.CatalogEntry, 0, len(candidates)+1)
+	ordered = append(ordered, preferred)
+	for _, candidate := range candidates {
+		if candidate.InternalName != preferred.InternalName {
+			ordered = append(ordered, candidate)
+		}
+	}
+	if len(ordered) > len(candidates) {
+		ordered = ordered[:len(candidates)]
+	}
+	return ordered
+}
+
+func recommendedPlanForRig(rig RigDescription, isDualDSP bool) (recommendedCandidatePlan, error) {
+	groups, err := rankedCandidateGroups(rig)
+	if err != nil {
+		return recommendedCandidatePlan{}, err
+	}
+	return recommendedPlanForGroups(groups, isDualDSP)
+}
+
+func recommendedPlanForGroups(groups []rankedComponentCandidates, isDualDSP bool) (recommendedCandidatePlan, error) {
+	type planState struct {
+		plan      recommendedCandidatePlan
+		rankScore int
+		path      int
+	}
+	states := []planState{{}}
+	for _, group := range groups {
+		next := make([]planState, 0, len(states)*len(group.candidates)*2)
+		for _, state := range states {
+			for rank, candidate := range group.candidates {
+				cost := helix.EffectiveDSP(candidate)
+				for _, path := range plannerPaths(state.path, isDualDSP) {
+					if state.plan.dsp[path]+cost > helix.SafeDSPPerPath {
+						continue
+					}
+					modelName := candidate.Name
+					if modelName == "" {
+						modelName = candidate.InternalName
+					}
+					plan := state.plan
+					params := map[string]interface{}(nil)
+					if strings.EqualFold(modelName, group.preferredModel) {
+						params = cloneParams(group.preferredParams)
+					}
+					plan.blocks = append(append([]plannedBlock(nil), state.plan.blocks...), plannedBlock{name: group.component.Name, modelName: modelName, path: path, dsp: cost, params: params})
+					plan.dsp[path] += cost
+					next = append(next, planState{plan: plan, rankScore: state.rankScore + rank, path: path})
+				}
+			}
+		}
+		if len(next) == 0 {
+			return recommendedCandidatePlan{}, fmt.Errorf("no DSP-safe candidate plan for component %q", group.component.Name)
+		}
+		sort.Slice(next, func(i, j int) bool {
+			if next[i].rankScore != next[j].rankScore {
+				return next[i].rankScore < next[j].rankScore
+			}
+			leftDSP := next[i].plan.dsp[0] + next[i].plan.dsp[1]
+			rightDSP := next[j].plan.dsp[0] + next[j].plan.dsp[1]
+			if leftDSP != rightDSP {
+				return leftDSP < rightDSP
+			}
+			return next[i].path < next[j].path
+		})
+		if len(next) > plannerBeamWidth {
+			next = next[:plannerBeamWidth]
+		}
+		states = next
+	}
+	return states[0].plan, nil
+}
+
+func plannerPaths(currentPath int, isDualDSP bool) []int {
+	if !isDualDSP || currentPath == 1 {
+		return []int{currentPath}
+	}
+	return []int{0, 1}
+}
+
+// BuildPresetFromJSON validates a provider's block mapping and creates an exportable preset.
+func BuildPresetFromJSON(jsonText string, rig *RigDescription, presetName string, hardware string, defaultExp int, variaxEnabled bool, hardwareModel string) (*helix.Preset, error) {
+	helix.DB.EnsureLoaded()
+	if rig == nil {
+		return nil, fmt.Errorf("rig description is required")
+	}
+	if err := validateRigDescription(rig); err != nil {
+		return nil, fmt.Errorf("invalid rig description: %w", err)
+	}
+	isDualDSP := IsDualDSPHardware(hardware)
 
 	// 4. PRE-FLIGHT VARIAX SYNC: Ensure top-level fields are sync'd with Chain components
 	// (Agents are more reliable at updating the Chain/Params than top-level technical fields)
@@ -157,20 +392,20 @@ func (c *Client) ChatPresetEngineer(ctx context.Context, rig *RigDescription, pr
 		}
 	}
 
-	// 5. Parse Response
-	type BuilderBlock struct {
-		Name      string                 `json:"name"`
-		ModelName string                 `json:"model_name"`
-		Path      int                    `json:"path"`
-		Params    map[string]interface{} `json:"params"`
-	}
-	type BuilderResponse struct {
-		Blocks []BuilderBlock `json:"blocks"`
-	}
-
-	var builderResp BuilderResponse
-	if err := json.Unmarshal([]byte(jsonText), &builderResp); err != nil {
+	// 5. Parse and validate the model response before using it to build a preset.
+	var builderResp builderResponse
+	decoder := json.NewDecoder(bytes.NewBufferString(jsonText))
+	decoder.DisallowUnknownFields()
+	if err := decoder.Decode(&builderResp); err != nil {
 		return nil, fmt.Errorf("failed to parse Preset Engineer JSON: %v. Raw: %s", err, jsonText)
+	}
+	var extra interface{}
+	if err := decoder.Decode(&extra); err != io.EOF {
+		return nil, fmt.Errorf("Preset Engineer returned multiple JSON values")
+	}
+	applyCuratedRecipeDefaults(&builderResp, rig)
+	if err := validateBuilderResponse(builderResp, rig, isDualDSP); err != nil {
+		return nil, fmt.Errorf("invalid Preset Engineer response: %w", err)
 	}
 
 	// 6. Construct The Real Preset via Template
@@ -218,21 +453,17 @@ func (c *Client) ChatPresetEngineer(ctx context.Context, rig *RigDescription, pr
 		}
 
 		entry, found := helix.DB.FindByRealName(b.ModelName)
-		var internalID string
-		var defaultData map[string]interface{}
-
-		if found {
-			internalID = entry.InternalName
-			defaultData = entry.Data["Defaults"].(map[string]interface{})
-		} else {
-			entryID, foundID := helix.DB.FindByID(b.ModelName)
-			if foundID {
-				internalID = entryID.InternalName
-				defaultData = entryID.Data["Defaults"].(map[string]interface{})
-			} else {
-				continue
-			}
+		if !found {
+			entry, found = helix.DB.FindByID(b.ModelName)
 		}
+		if !found {
+			return nil, fmt.Errorf("model %q disappeared from the Helix catalog", b.ModelName)
+		}
+		defaultData, ok := entry.Data["Defaults"].(map[string]interface{})
+		if !ok {
+			return nil, fmt.Errorf("model %q has invalid defaults", b.ModelName)
+		}
+		internalID := entry.InternalName
 
 		finalParams := make(map[string]interface{})
 		for k, v := range defaultData {
@@ -280,40 +511,9 @@ func (c *Client) ChatPresetEngineer(ctx context.Context, rig *RigDescription, pr
 		}
 
 		for pName, pVal := range b.Params {
-			pVal = sanitizeParam(internalID, pName, pVal)
-			key := pName
-
-			// Heuristic for matching generic names to technical names
-			if _, exists := defaultData[key]; !exists {
-				lowName := strings.ToLower(pName)
-				found := false
-				alternatives := []string{}
-				if lowName == "gain" {
-					alternatives = []string{"Drive", "LeadGain", "Lead Drive", "ChVol", "Master"}
-				} else if lowName == "drive" {
-					alternatives = []string{"Gain", "LeadDrive", "Lead Gain", "Overdrive"}
-				} else if lowName == "volume" || lowName == "vol" {
-					alternatives = []string{"ChVol", "Master", "Level"}
-				} else if lowName == "mids" {
-					alternatives = []string{"Middle", "Mid"}
-				}
-
-				for _, alt := range alternatives {
-					if _, exists := defaultData[alt]; exists {
-						key = alt
-						found = true
-						break
-					}
-				}
-
-				if !found {
-					for actualKey := range defaultData {
-						if strings.EqualFold(actualKey, pName) {
-							key = actualKey
-							break
-						}
-					}
-				}
+			key, err := resolveParameterName(entry, pName, false)
+			if err != nil {
+				return nil, fmt.Errorf("block %q: %w", b.Name, err)
 			}
 			finalParams[key] = pVal
 		}
@@ -327,30 +527,6 @@ func (c *Client) ChatPresetEngineer(ctx context.Context, rig *RigDescription, pr
 			// Placing block in the correct DSP map
 			blockKey := fmt.Sprintf("block%d", pos)
 			dsp[blockKey] = finalParams
-
-			// SYNC FIX: If we are processing Snapshot 0, update the main block's enabled state
-			isUsedInAnySnapshot := false
-			if len(rig.Snapshots) > 0 {
-				for sIdx := range rig.Snapshots {
-					snapshot := &rig.Snapshots[sIdx]
-					for _, activeName := range snapshot.ActiveBlocks {
-						an := strings.ToLower(activeName)
-						bn := strings.ToLower(b.Name)
-						if an == bn || strings.Contains(an, bn) || strings.Contains(bn, an) {
-							isUsedInAnySnapshot = true
-							break
-						}
-					}
-					if isUsedInAnySnapshot {
-						break
-					}
-				}
-
-				// If block is totally unused, force it enabled in the first snapshot
-				if !isUsedInAnySnapshot && len(rig.Snapshots) > 0 {
-					rig.Snapshots[0].ActiveBlocks = append(rig.Snapshots[0].ActiveBlocks, b.Name)
-				}
-			}
 
 			// Default Expression Pedal Assignment
 			if defaultExp > 0 {
@@ -426,45 +602,9 @@ func (c *Client) ChatPresetEngineer(ctx context.Context, rig *RigDescription, pr
 									snapshot := rig.Snapshots[s]
 									if overrides, ok := snapshot.Params[b.Name].(map[string]interface{}); ok {
 										for pName, pVal := range overrides {
-											// Map parameter name to technical Helix key
-											pKey := pName
-											// ... (pKey resolution logic follows)
-
-											// 1. Try exact match or common aliases
-											if _, exists := defaultData[pKey]; !exists {
-												// Heuristic for matching "Gain" or "Drive" to specific amp parameters
-												lowName := strings.ToLower(pName)
-												foundMatch := false
-
-												// List of alternatives to try
-												alternatives := []string{}
-												if lowName == "gain" {
-													alternatives = []string{"Drive", "LeadGain", "Lead Drive", "ChVol", "Master"}
-												} else if lowName == "drive" {
-													alternatives = []string{"Gain", "LeadDrive", "Lead Gain", "Overdrive"}
-												} else if lowName == "volume" || lowName == "vol" {
-													alternatives = []string{"ChVol", "Master", "Level"}
-												} else if lowName == "mids" {
-													alternatives = []string{"Middle", "Mid"}
-												}
-
-												for _, alt := range alternatives {
-													if _, exists := defaultData[alt]; exists {
-														pKey = alt
-														foundMatch = true
-														break
-													}
-												}
-
-												// 2. If no alias found, try a case-insensitive lookup
-												if !foundMatch {
-													for actualKey := range defaultData {
-														if strings.EqualFold(actualKey, pName) {
-															pKey = actualKey
-															break
-														}
-													}
-												}
+											pKey, err := resolveParameterName(entry, pName, true)
+											if err != nil {
+												return nil, fmt.Errorf("snapshot %q block %q: %w", snapshot.Name, b.Name, err)
 											}
 
 											// OPTIMIZATION: Check if this parameter actually varies across any snapshot or from baseline
@@ -473,13 +613,18 @@ func (c *Client) ChatPresetEngineer(ctx context.Context, rig *RigDescription, pr
 											baselineVal := finalParams[pKey]
 											for _, otherSnap := range rig.Snapshots {
 												if otherOverrides, ok := otherSnap.Params[b.Name].(map[string]interface{}); ok {
-													if otherVal, ok := otherOverrides[pName]; ok {
-														// Sanitize otherVal to match the scale of baselineVal
-														sOtherVal := sanitizeParam(internalID, pKey, otherVal)
-														if sOtherVal != baselineVal {
+													for otherName, otherVal := range otherOverrides {
+														otherKey, err := resolveParameterName(entry, otherName, true)
+														if err != nil {
+															return nil, fmt.Errorf("snapshot %q block %q: %w", otherSnap.Name, b.Name, err)
+														}
+														if otherKey == pKey && otherVal != baselineVal {
 															shouldControl = true
 															break
 														}
+													}
+													if shouldControl {
+														break
 													}
 												}
 											}
@@ -555,7 +700,9 @@ func (c *Client) ChatPresetEngineer(ctx context.Context, rig *RigDescription, pr
 	}
 
 	if variaxRequested {
-		applyVariax(preset, rig, hardwareModel)
+		if err := applyVariax(preset, rig, hardwareModel); err != nil {
+			return nil, err
+		}
 	} else {
 		// If Variax is disabled, reset to safe defaults instead of removing
 		if data, ok := (*preset)["data"].(map[string]interface{}); ok {
@@ -602,11 +749,7 @@ func (c *Client) ChatPresetEngineer(ctx context.Context, rig *RigDescription, pr
 		// EXPOSE DSP MAP: Include model->DSP costs for UI visualization
 		dspMap := make(map[string]float64)
 		for _, e := range helix.DB.Entries {
-			cost := e.DSPMono
-			if cost == 0 {
-				cost = 3.0
-			}
-			dspMap[e.InternalName] = cost
+			dspMap[e.InternalName] = helix.EffectiveDSP(e)
 		}
 		if meta, ok := data["meta"].(map[string]interface{}); ok {
 			meta["dsp_map"] = dspMap
@@ -641,21 +784,25 @@ func (c *Client) ChatPresetEngineer(ctx context.Context, rig *RigDescription, pr
 		}
 	}
 
+	if err := helix.ValidatePreset(*preset); err != nil {
+		return nil, fmt.Errorf("generated preset failed validation: %w", err)
+	}
+
 	return preset, nil
 }
 
-func applyVariax(preset *helix.Preset, rig *RigDescription, hardwareModel string) {
+func applyVariax(preset *helix.Preset, rig *RigDescription, hardwareModel string) error {
 	data, ok := (*preset)["data"].(map[string]interface{})
 	if !ok {
-		return
+		return fmt.Errorf("preset is missing data")
 	}
 	tone, ok := data["tone"].(map[string]interface{})
 	if !ok {
-		return
+		return fmt.Errorf("preset is missing tone data")
 	}
 	v, ok := tone["variax"].(map[string]interface{})
 	if !ok {
-		return
+		return fmt.Errorf("preset is missing variax data")
 	}
 
 	// 0. Load Configuration Once
@@ -675,11 +822,12 @@ func applyVariax(preset *helix.Preset, rig *RigDescription, hardwareModel string
 		} `json:"variax_configurations"`
 	}
 
-	confPath := "pkg/helix/data/variax_models.json"
-	configBytes, _ := os.ReadFile(confPath)
 	var root ConfigRoot
-	if configBytes != nil {
-		json.Unmarshal(configBytes, &root)
+	if err := json.Unmarshal(helix.VariaxModelsJSON, &root); err != nil {
+		return fmt.Errorf("failed to load embedded Variax configuration: %w", err)
+	}
+	if len(root.Configs) == 0 {
+		return fmt.Errorf("embedded Variax configuration is empty")
 	}
 
 	// Internal helper to get active config
@@ -925,58 +1073,223 @@ func applyVariax(preset *helix.Preset, rig *RigDescription, hardwareModel string
 			}
 		}
 	}
+
+	return nil
 }
 
-func sanitizeParam(internalID, k string, v interface{}) interface{} {
-	val, isFloat := v.(float64)
-	if !isFloat {
-		return v
+func validateBuilderResponse(response builderResponse, rig *RigDescription, isDualDSP bool) error {
+	expected := make([]RigComponent, 0, len(rig.Chain))
+	for _, component := range rig.Chain {
+		if strings.Contains(strings.ToLower(component.Type), "variax") || strings.Contains(strings.ToLower(component.Name), "variax") {
+			continue
+		}
+		if component.Name == "" {
+			return fmt.Errorf("rig contains a component without a name")
+		}
+		for _, previous := range expected {
+			if previous.Name == component.Name {
+				return fmt.Errorf("rig contains duplicate component name %q", component.Name)
+			}
+		}
+		expected = append(expected, component)
 	}
 
-	lowK := strings.ToLower(k)
-
-	// List of parameters that should be in 0.0-1.0 range internally (0-10 on knob)
-	isPercentageParam := strings.Contains(lowK, "gain") ||
-		strings.Contains(lowK, "drive") ||
-		strings.Contains(lowK, "bass") ||
-		strings.Contains(lowK, "mid") ||
-		strings.Contains(lowK, "treble") ||
-		strings.Contains(lowK, "presence") ||
-		strings.Contains(lowK, "chvol") ||
-		strings.Contains(lowK, "master") ||
-		strings.Contains(lowK, "level") ||
-		strings.Contains(lowK, "mix") ||
-		strings.Contains(lowK, "feedback") ||
-		strings.Contains(lowK, "fdbk") ||
-		strings.Contains(lowK, "pedal")
-
-	if isPercentageParam {
-		// Normalization: If the AI provides 3.5, it likely meant 0.35
-		if val > 1.0 {
-			val = val / 10.0
-		}
-		// Hard Cap: Ensure we don't exceed 1.0 for these parameters
-		if val > 1.0 {
-			val = 1.0
-		}
-		v = val
+	if len(expected) == 0 {
+		return fmt.Errorf("rig has no mappable components")
+	}
+	if len(response.Blocks) != len(expected) {
+		return fmt.Errorf("expected %d blocks, got %d", len(expected), len(response.Blocks))
 	}
 
-	// Reverb Decay Sanitization (Reverbs and Delays with Reverb tails)
-	isReverb := strings.HasPrefix(internalID, "HD2_Reverb") || strings.HasPrefix(internalID, "VIC_Reverb")
-	isDelay := strings.HasPrefix(internalID, "HD2_Delay") || strings.HasPrefix(internalID, "VIC_Delay")
-	if (isReverb && (lowK == "decay" || lowK == "verbdecay")) || (isDelay && lowK == "verbdecay") {
-		if val >= 0.7 {
-			return 0.7
+	blockModels := make(map[string]helix.CatalogEntry, len(response.Blocks))
+	pathDSP := [2]float64{}
+	previousPath := 0
+	for index, block := range response.Blocks {
+		if block.Name == "" || block.ModelName == "" {
+			return fmt.Errorf("block name and model_name are required")
+		}
+		component := expected[index]
+		if block.Name != component.Name {
+			return fmt.Errorf("block %d is %q, want rig component %q", index, block.Name, component.Name)
+		}
+		if block.Path < 0 || block.Path > 1 || (!isDualDSP && block.Path != 0) {
+			return fmt.Errorf("block %q has invalid path %d", block.Name, block.Path)
+		}
+		if index > 0 && block.Path < previousPath {
+			return fmt.Errorf("block %q moves from path %d back to path %d", block.Name, previousPath, block.Path)
+		}
+		previousPath = block.Path
+
+		entry, found := helix.DB.FindByRealName(block.ModelName)
+		if !found {
+			entry, found = helix.DB.FindByID(block.ModelName)
+		}
+		if !found {
+			return fmt.Errorf("block %q uses unknown model %q", block.Name, block.ModelName)
+		}
+		if !helix.IsCompatibleComponentModel(component.Type, entry) {
+			return fmt.Errorf("block %q uses model %q incompatible with component type %q", block.Name, block.ModelName, component.Type)
+		}
+		pathDSP[block.Path] += helix.EffectiveDSP(entry)
+		if err := validateParameterMap(entry, block.Params, false); err != nil {
+			return fmt.Errorf("block %q: %w", block.Name, err)
+		}
+		blockModels[block.Name] = entry
+	}
+	for _, snapshot := range rig.Snapshots {
+		for blockName, rawOverrides := range snapshot.Params {
+			entry, mappable := blockModels[blockName]
+			if !mappable {
+				// Variax overrides are handled as global input settings, not block parameters.
+				continue
+			}
+			overrides, ok := rawOverrides.(map[string]interface{})
+			if !ok {
+				return fmt.Errorf("snapshot %q block %q parameters must be an object", snapshot.Name, blockName)
+			}
+			if err := validateParameterMap(entry, overrides, true); err != nil {
+				return fmt.Errorf("snapshot %q block %q: %w", snapshot.Name, blockName, err)
+			}
+		}
+	}
+	for path, cost := range pathDSP {
+		if cost > helix.SafeDSPPerPath {
+			return fmt.Errorf("path %d requires %.1f%% DSP, exceeding the safe %.1f%% budget", path, cost, helix.SafeDSPPerPath)
 		}
 	}
 
-	// Delay Feedback Sanitization
-	if isDelay && (lowK == "feedback" || lowK == "fdbk" || lowK == "bk") {
-		if val >= 0.75 {
-			return 0.75
+	return nil
+}
+
+var parameterAliases = map[string][]string{
+	"gain":   {"Drive", "LeadGain", "Lead Drive", "ChVol", "Master"},
+	"drive":  {"Gain", "LeadDrive", "Lead Gain", "Overdrive"},
+	"volume": {"ChVol", "Master", "Level"},
+	"vol":    {"ChVol", "Master", "Level"},
+	"mids":   {"Middle", "Mid"},
+}
+
+func validateParameterMap(entry helix.CatalogEntry, values map[string]interface{}, snapshot bool) error {
+	return validateParameterMapWithSafety(entry, values, snapshot, true)
+}
+
+func validateCatalogDefaultParameterMap(entry helix.CatalogEntry, values map[string]interface{}) error {
+	return validateParameterMapWithSafety(entry, values, false, false)
+}
+
+func validateParameterMapWithSafety(entry helix.CatalogEntry, values map[string]interface{}, snapshot, enforceSafety bool) error {
+	for requestedName, value := range values {
+		name, err := resolveParameterName(entry, requestedName, snapshot)
+		if err != nil {
+			return err
+		}
+		if err := validateParameterValue(entry, name, value, enforceSafety); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func resolveParameterName(entry helix.CatalogEntry, requestedName string, snapshot bool) (string, error) {
+	if strings.HasPrefix(requestedName, "@") {
+		return "", fmt.Errorf("parameter %q is reserved", requestedName)
+	}
+	defaults, ok := entry.Data["Defaults"].(map[string]interface{})
+	if !ok {
+		return "", fmt.Errorf("model %q has invalid defaults", entry.InternalName)
+	}
+	name := requestedName
+	if _, exists := defaults[name]; !exists {
+		found := false
+		for actualName := range defaults {
+			if strings.EqualFold(actualName, requestedName) {
+				name = actualName
+				found = true
+				break
+			}
+		}
+		if !found {
+			for _, alias := range parameterAliases[strings.ToLower(requestedName)] {
+				if _, exists := defaults[alias]; exists {
+					name = alias
+					found = true
+					break
+				}
+			}
+		}
+		if !found {
+			return "", fmt.Errorf("unsupported parameter %q", requestedName)
+		}
+	}
+	if snapshot && !isSnapshotControllable(entry, name) {
+		return "", fmt.Errorf("parameter %q cannot be controlled by snapshots", requestedName)
+	}
+	return name, nil
+}
+
+func validateParameterValue(entry helix.CatalogEntry, name string, value interface{}, enforceSafety bool) error {
+	defaults := entry.Data["Defaults"].(map[string]interface{})
+	expected := defaults[name]
+	switch expected.(type) {
+	case float64:
+		actual, ok := value.(float64)
+		if !ok {
+			return fmt.Errorf("parameter %q must be a number", name)
+		}
+		if math.IsNaN(actual) || math.IsInf(actual, 0) {
+			return fmt.Errorf("parameter %q must be finite", name)
+		}
+		min, max := parameterRange(entry, name, enforceSafety)
+		if actual < min || actual > max {
+			return fmt.Errorf("parameter %q value %.3f is outside the allowed range %.3f to %.3f", name, actual, min, max)
+		}
+	case bool:
+		if _, ok := value.(bool); !ok {
+			return fmt.Errorf("parameter %q must be a boolean", name)
+		}
+	case string:
+		if _, ok := value.(string); !ok {
+			return fmt.Errorf("parameter %q must be a string", name)
+		}
+	default:
+		return fmt.Errorf("parameter %q has unsupported catalog type %T", name, expected)
+	}
+	return nil
+}
+
+func isSnapshotControllable(entry helix.CatalogEntry, name string) bool {
+	controllers, ok := entry.Data["Controller_Dict"].(map[string]interface{})
+	if !ok {
+		return false
+	}
+	_, ok = controllers[name]
+	return ok
+}
+
+func parameterRange(entry helix.CatalogEntry, name string, enforceSafety bool) (float64, float64) {
+	min, max := math.Inf(-1), math.Inf(1)
+	if controllers, ok := entry.Data["Controller_Dict"].(map[string]interface{}); ok {
+		if controller, ok := controllers[name].(map[string]interface{}); ok {
+			if value, ok := controller["@min"].(float64); ok {
+				min = value
+			}
+			if value, ok := controller["@max"].(float64); ok {
+				max = value
+			}
 		}
 	}
 
-	return v
+	lowerName := strings.ToLower(name)
+	if !enforceSafety {
+		return min, max
+	}
+	isReverb := strings.HasPrefix(entry.InternalName, "HD2_Reverb") || strings.HasPrefix(entry.InternalName, "VIC_Reverb")
+	isDelay := strings.HasPrefix(entry.InternalName, "HD2_Delay") || strings.HasPrefix(entry.InternalName, "HD2_DL4") || strings.HasPrefix(entry.InternalName, "VIC_Delay")
+	if (isReverb && (lowerName == "decay" || lowerName == "verbdecay")) || (isDelay && lowerName == "verbdecay") {
+		max = math.Min(max, 0.7)
+	}
+	if isDelay && (lowerName == "feedback" || lowerName == "fdbk" || lowerName == "bk") {
+		max = math.Min(max, 0.75)
+	}
+	return min, max
 }

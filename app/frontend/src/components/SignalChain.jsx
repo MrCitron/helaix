@@ -1,7 +1,9 @@
 import React, { useState } from 'react';
 import { getIconForBlock, getBlockColor } from './IconLibrary';
+import { useI18n } from '../i18n';
 
 const BlockParameters = ({ block, blockKey, color, activeSnapshot, preset, onClose, rigTotal }) => {
+    const { t } = useI18n();
     // Determine the current value accounting for snapshot overrides
     const getParamValue = (pKey, baseVal) => {
         if (!preset || !preset.data || !preset.data.tone || !activeSnapshot) return baseVal;
@@ -45,17 +47,17 @@ const BlockParameters = ({ block, blockKey, color, activeSnapshot, preset, onClo
         });
 
         if (block["@type"] === 'variax') {
-            visible.push(["Model", block["@model"]]);
+            visible.push([t('visualizer.model'), block["@model"]]);
         }
 
         if ((block["@model"] === 'Variax' || block["@type"] === 'variax') && block["@variax_customtuning"] === true) {
             const strings = [
-                { key: "@variax_str1tuning", label: "Str 1 (High E)" },
-                { key: "@variax_str2tuning", label: "Str 2 (B)" },
-                { key: "@variax_str3tuning", label: "Str 3 (G)" },
-                { key: "@variax_str4tuning", label: "Str 4 (D)" },
-                { key: "@variax_str5tuning", label: "Str 5 (A)" },
-                { key: "@variax_str6tuning", label: "Str 6 (Low E)" },
+                { key: "@variax_str1tuning", label: t('visualizer.strings.highE') },
+                { key: "@variax_str2tuning", label: t('visualizer.strings.b') },
+                { key: "@variax_str3tuning", label: t('visualizer.strings.g') },
+                { key: "@variax_str4tuning", label: t('visualizer.strings.d') },
+                { key: "@variax_str5tuning", label: t('visualizer.strings.a') },
+                { key: "@variax_str6tuning", label: t('visualizer.strings.lowE') },
             ];
             strings.forEach(str => {
                 if (block[str.key] !== undefined) {
@@ -75,7 +77,7 @@ const BlockParameters = ({ block, blockKey, color, activeSnapshot, preset, onClo
 
     // Names: Clean format for internal model names
     const formatHelixName = (m, type) => {
-        if (!m) return "Block";
+        if (!m) return t('visualizer.block');
         if (type === 'variax') return m;
         return m.replace('HD2_', '').replace('VIC_', '').replace('L6SPB_', '').replace('L6C_', '')
             .replace(/_/g, ' ').replace(/([A-Z])/g, ' $1').trim();
@@ -102,7 +104,7 @@ const BlockParameters = ({ block, blockKey, color, activeSnapshot, preset, onClo
                     </div>
                 </div>
                 <div className="flex gap-2">
-                    <span className="text-[9px] px-2 py-0.5 rounded bg-slate-100 dark:bg-surface-dark text-primary border border-primary/20 font-bold uppercase">{block['@stereo'] || block.stereo ? 'Stereo' : 'Mono'}</span>
+                    <span className="text-[9px] px-2 py-0.5 rounded bg-slate-100 dark:bg-surface-dark text-primary border border-primary/20 font-bold uppercase">{block['@stereo'] || block.stereo ? t('visualizer.stereo') : t('visualizer.mono')}</span>
                     <button onClick={onClose} className="text-slate-500 dark:text-text-muted hover:text-slate-900 dark:hover:text-white transition-colors">
                         <span className="material-symbols-outlined text-sm">close</span>
                     </button>
@@ -121,7 +123,7 @@ const BlockParameters = ({ block, blockKey, color, activeSnapshot, preset, onClo
                                     {isControlled && (
                                         <div className="flex items-center gap-1 bg-blue-500/10 px-1 rounded">
                                             <div className="w-1 h-1 rounded-full bg-blue-500 animate-pulse"></div>
-                                            <span className="text-blue-500 text-[8px] font-black tracking-tighter uppercase whitespace-nowrap">SNAP</span>
+                                            <span className="text-blue-500 text-[8px] font-black tracking-tighter uppercase whitespace-nowrap">{t('visualizer.snapshotControl')}</span>
                                         </div>
                                     )}
                                 </div>
@@ -139,7 +141,7 @@ const BlockParameters = ({ block, blockKey, color, activeSnapshot, preset, onClo
                         );
                     })
                 ) : (
-                    <div className="col-span-full py-4 text-center text-xs text-slate-500 dark:text-text-muted italic">No adjustable parameters.</div>
+                    <div className="col-span-full py-4 text-center text-xs text-slate-500 dark:text-text-muted italic">{t('visualizer.noAdjustableParameters')}</div>
                 )}
             </div>
         </div>
@@ -147,6 +149,7 @@ const BlockParameters = ({ block, blockKey, color, activeSnapshot, preset, onClo
 };
 
 const SignalChain = ({ dspBlocks, activeSnapshot, preset }) => {
+    const { t } = useI18n();
     const [expandedBlock, setExpandedBlock] = useState(null);
 
     const toggleBlock = (key) => {
@@ -162,7 +165,7 @@ const SignalChain = ({ dspBlocks, activeSnapshot, preset }) => {
             <div className="flex justify-start px-8 pt-4">
                 <div className="flex items-center gap-2 bg-slate-800/40 px-2 py-0.5 rounded-full border border-slate-700/50">
                     <span className="material-symbols-outlined text-[10px] text-primary">analytics</span>
-                    <span className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">Estimated DSP usage: </span>
+                    <span className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">{t('visualizer.estimatedDspUsage')} </span>
                     <span className={`text-[10px] font-black ${totalDSP > 150 ? 'text-red-400' : totalDSP > 90 ? 'text-orange-400' : 'text-primary'}`}>
                         {totalDSP.toFixed(1)}
                     </span>
@@ -211,7 +214,7 @@ const SignalChain = ({ dspBlocks, activeSnapshot, preset }) => {
 
                         // Labels: Clean format for internal model names
                         const formatHelixName = (m, type) => {
-                            if (!m) return "Block";
+                            if (!m) return t('visualizer.block');
                             if (type === 'variax') return m;
                             return m.replace('HD2_', '').replace('VIC_', '').replace('L6SPB_', '').replace('L6C_', '')
                                 .replace(/_/g, ' ').replace(/([A-Z])/g, ' $1').trim();
@@ -279,7 +282,7 @@ const SignalChain = ({ dspBlocks, activeSnapshot, preset }) => {
 
             {!expandedBlock && (
                 <div className="flex justify-center w-full mt-2">
-                    <p className="text-[9px] text-[#586e75] italic pb-2 uppercase tracking-widest opacity-60 animate-in fade-in duration-500">Click a block to view parameters</p>
+                    <p className="text-[9px] text-[#586e75] italic pb-2 uppercase tracking-widest opacity-60 animate-in fade-in duration-500">{t('visualizer.clickBlockParameters')}</p>
                 </div>
             )}
 

@@ -55,7 +55,9 @@ func TestSnapshotMapping(t *testing.T) {
 	}
 
 	t.Run("Snapshot Variax Override", func(t *testing.T) {
-		applyVariax(preset, rig, "Helix Floor")
+		if err := applyVariax(preset, rig, "Helix Floor"); err != nil {
+			t.Fatalf("applyVariax() error = %v", err)
+		}
 
 		tone := (*preset)["data"].(map[string]interface{})["tone"].(map[string]interface{})
 

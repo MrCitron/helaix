@@ -10,6 +10,10 @@ export function GxChatSoundEngineer(arg1) {
   return window['go']['main']['App']['GxChatSoundEngineer'](arg1);
 }
 
+export function GxGetCodexCLIStatus(arg1) {
+  return window['go']['main']['App']['GxGetCodexCLIStatus'](arg1);
+}
+
 export function GxGetConfig() {
   return window['go']['main']['App']['GxGetConfig']();
 }
@@ -40,6 +44,10 @@ export function GxSaveFile(arg1, arg2) {
 
 export function GxSelectFolder(arg1) {
   return window['go']['main']['App']['GxSelectFolder'](arg1);
+}
+
+export function GxTestCodexCLI(arg1, arg2) {
+  return window['go']['main']['App']['GxTestCodexCLI'](arg1, arg2);
 }
 
 export function GxTestConnection(arg1, arg2) {
