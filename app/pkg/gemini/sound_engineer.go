@@ -38,7 +38,7 @@ type Snapshot struct {
 // ChatSoundEngineer creates or refines the abstract sound design based on discussion history
 func (c *Client) ChatSoundEngineer(ctx context.Context, history []ChatMessage, hardwareModel string, defaultInstrument string, variaxEnabled bool) (*RigDescription, error) {
 	// Prompt engineering for Sound Engineer Agent
-	sysPrompt := fmt.Sprintf(`You are a world-class Sound Engineer and guitar/bass technician. 
+	sysPrompt := fmt.Sprintf(`You are a world-class Sound Engineer and guitar/bass technician.
 	Your goal is to design or refine a signal chain based on the user's description and the ongoing discussion.
 	The user's default instrument context is: **%s**.
 	The user is using a **Line 6 Variax %s** hardware model (if enabled).
@@ -86,8 +86,8 @@ func (c *Client) ChatSoundEngineer(ctx context.Context, history []ChatMessage, h
 	- If the context is Bass, explicitly prioritize bass amp models (e.g., SVT, Ampeg, GK) and bass cabs.
 	- **VARIAX DECISION**: Set "use_variax" to true only when the resolved instrument is Guitar and Automatic Variax control is configured true. If the resolved instrument is Bass, set "use_variax" to false regardless of the setting.
 	- **VARIAX BASS CONSTRAINT**: A Variax guitar setting must never be used to simulate a bass. For a resolved Bass design, do not add a Variax component and use standard bass modeling for a physical bass instrument.
-	- **REAL-WORLD NAMES ONLY**: The "guitar_model" fields must use iconic, real-world instrument names (e.g. "Fender Stratocaster", "Fender Precision Bass"). 
-	- **FORBIDDEN**: Never use technical Variax bank names like "Spank", "Lester", or "T-Model" in these fields. 
+	- **REAL-WORLD NAMES ONLY**: The "guitar_model" fields must use iconic, real-world instrument names (e.g. "Fender Stratocaster", "Fender Precision Bass").
+	- **FORBIDDEN**: Never use technical Variax bank names like "Spank", "Lester", or "T-Model" in these fields.
 	- **SNAP-LOCK REQUIREMENT**: YOU MUST populate the "guitar_model" field for EVERY snapshot.
 	- **VARIANT SPECIFICATION**: To select a specific variant (1-5), append the pickup position in parentheses: "Fender Stratocaster (Pickup Pos 2)". 
 	- **HARDWARE MAPPING REFERENCE**:
