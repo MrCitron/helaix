@@ -1,0 +1,161 @@
+name: Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Semantic version to release, for example v0.13.0"
+        required: true
+        type: string
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+jobs:
+  prepare:
+    name: Prepare release commit and tag
+    if: github.ref_name == github.event.repository.default_branch
+    runs-on: ubuntu-latest
+    outputs:
+      tag: ${{ steps.release.outputs.tag }}
+    steps:
+      - name: Checkout main
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: "24"
+
+      - name: Prepare release files
+        id: release
+        env:
+          RELEASE_VERSION: ${{ inputs.version }}
+        run: |
+          node scripts/release.mjs --version "$RELEASE_VERSION" --notes-file "$RUNNER_TEMP/release-notes.md"
+          printf 'tag=%s\n' "$(node -e 'const v=process.env.RELEASE_VERSION; console.log(v.startsWith("v") ? v : `v${v}`)')" >> "$GITHUB_OUTPUT"
+
+      - name: Validate release changes
+        run: git diff --check
+
+      - name: Commit release metadata
+        env:
+          RELEASE_VERSION: ${{ inputs.version }}
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add CHANGELOG.md app/frontend/package.json app/frontend/package-lock.json app/frontend/package.json.md5
+          git commit -m "chore: prepare release ${RELEASE_VERSION#v}"
+          git push origin HEAD:main
+
+      - name: Create and push version tag
+        env:
+          RELEASE_VERSION: ${{ steps.release.outputs.tag }}
+        run: |
+          git tag -a "$RELEASE_VERSION" -m "$RELEASE_VERSION"
+          git push origin "$RELEASE_VERSION"
+
+  build:
+    name: Build ${{ matrix.platform.name }} artifact
+    needs: prepare
+    strategy:
+      matrix:
+        platform:
+          - os: windows-latest
+            name: windows
+            target: helaix.exe
+            additional_params: ""
+          - os: macos-latest
+            name: darwin
+            target: HelAIx.app.zip
+            additional_params: "-platform darwin/universal"
+    runs-on: ${{ matrix.platform.os }}
+    steps:
+      - name: Checkout release tag
+        uses: actions/checkout@v7
+        with:
+          ref: ${{ needs.prepare.outputs.tag }}
+
+      - name: Setup Go
+        uses: actions/setup-go@v7
+        with:
+          go-version: "1.24.0"
+          cache-dependency-path: app/go.sum
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: "24"
+
+      - name: Install frontend dependencies
+        working-directory: app/frontend
+        run: npm ci
+
+      - name: Install Wails
+        working-directory: app
+        run: go install github.com/wailsapp/wails/v2/cmd/wails@v2.15.0
+
+      - name: Build application
+        working-directory: app
+        run: wails build ${{ matrix.platform.additional_params }}
+
+      - name: Zip macOS app bundle
+        working-directory: app
+        if: matrix.platform.name == 'darwin'
+        run: |
+          cd build/bin
+          zip -r HelAIx.app.zip HelAIx.app
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v7
+        with:
+          name: helaix-${{ matrix.platform.name }}
+          path: app/build/bin/${{ matrix.platform.target }}
+
+  github-release:
+    name: Create GitHub release
+    needs: [prepare, build]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout release tag
+        uses: actions/checkout@v7
+        with:
+          ref: ${{ needs.prepare.outputs.tag }}
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: "24"
+
+      - name: Extract changelog entry
+        env:
+          RELEASE_VERSION: ${{ needs.prepare.outputs.tag }}
+        run: node scripts/release.mjs --print-notes --version "$RELEASE_VERSION" > release-notes.md
+
+      - name: Download Windows artifact
+        uses: actions/download-artifact@v8
+        with:
+          name: helaix-windows
+          path: artifacts/windows
+
+      - name: Download macOS artifact
+        uses: actions/download-artifact@v8
+        with:
+          name: helaix-darwin
+          path: artifacts/darwin
+
+      - name: Create GitHub release
+        uses: softprops/action-gh-release@v3
+        with:
+          tag_name: ${{ needs.prepare.outputs.tag }}
+          name: HelAIx ${{ needs.prepare.outputs.tag }}
+          body_path: release-notes.md
+          files: |
+            artifacts/windows/*
+            artifacts/darwin/*

@@ -1,4 +1,4 @@
-name: Build and Release
+name: Build
 
 on:
   push:
@@ -6,14 +6,7 @@ on:
       - main
     paths:
       - 'app/**'
-    tags:
-      - 'v*'
   workflow_dispatch:
-    inputs:
-      version:
-        description: 'Release version (e.g., v1.0.0)'
-        required: true
-        type: string
 
 jobs:
   build:
@@ -33,25 +26,26 @@ jobs:
     
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Setup Go
-        uses: actions/setup-go@v5
+        uses: actions/setup-go@v7
         with:
-          go-version: '1.21'
+          go-version: '1.24.0'
+          cache-dependency-path: app/go.sum
 
       - name: Setup Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v7
         with:
-          node-version: '20'
+          node-version: '24'
 
       - name: Install frontend dependencies
         working-directory: app/frontend
-        run: npm install
+        run: npm ci
 
       - name: Install Wails
         working-directory: app
-        run: go install github.com/wailsapp/wails/v2/cmd/wails@latest
+        run: go install github.com/wailsapp/wails/v2/cmd/wails@v2.15.0
 
       - name: Build application
         working-directory: app
@@ -66,37 +60,7 @@ jobs:
 
       - name: Upload artifacts
         if: startsWith(github.ref, 'refs/tags/v') || github.event_name == 'workflow_dispatch'
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: helaix-${{ matrix.platform.name }}
           path: app/build/bin/${{ matrix.platform.target }}
-
-  release:
-    needs: build
-    runs-on: ubuntu-latest
-    if: startsWith(github.ref, 'refs/tags/v') || github.event_name == 'workflow_dispatch'
-    permissions:
-      contents: write
-    
-    steps:
-      - name: Download Windows artifact
-        uses: actions/download-artifact@v4
-        with:
-          name: helaix-windows
-          path: ./artifacts/windows
-
-      - name: Download macOS artifact
-        uses: actions/download-artifact@v4
-        with:
-          name: helaix-darwin
-          path: ./artifacts/darwin
-
-      - name: Create Release
-        uses: softprops/action-gh-release@v1
-        with:
-          tag_name: ${{ github.event.inputs.version || github.ref_name }}
-          files: |
-            ./artifacts/windows/*
-            ./artifacts/darwin/*
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
