@@ -1,6 +1,7 @@
 package gemini
 
 import (
+	"HelAIx/pkg/helix"
 	"testing"
 )
 
@@ -31,5 +32,54 @@ func TestSanitizeParam(t *testing.T) {
 				t.Errorf("sanitizeParam() = %v, want %v", got, tt.want)
 			}
 		})
+	}
+}
+
+func TestResolveParamKey(t *testing.T) {
+	defaults := map[string]interface{}{
+		"31p25Hz": 0.0,
+		"62p5Hz":  0.0,
+		"Drive":   0.0,
+	}
+
+	tests := []struct {
+		requested string
+		want      string
+		ok        bool
+	}{
+		{"31Hz", "31p25Hz", true},
+		{"62Hz", "62p5Hz", true},
+		{"drive", "Drive", true},
+		{"not-a-parameter", "", false},
+	}
+	for _, tt := range tests {
+		got, ok := resolveParamKey(defaults, tt.requested)
+		if got != tt.want || ok != tt.ok {
+			t.Errorf("resolveParamKey(%q) = %q, %v; want %q, %v", tt.requested, got, ok, tt.want, tt.ok)
+		}
+	}
+}
+
+func TestNormalizeParamType(t *testing.T) {
+	entry := helix.CatalogEntry{
+		Data: map[string]interface{}{
+			"Defaults": map[string]interface{}{
+				"Mode": true,
+			},
+		},
+	}
+
+	if got := normalizeParamType(entry, "Mode", "BP"); got != true {
+		t.Errorf("normalizeParamType() = %v, want true", got)
+	}
+	if got := normalizeParamType(entry, "Mode", false); got != false {
+		t.Errorf("normalizeParamType() = %v, want false", got)
+	}
+}
+
+func TestSnapshotControllerUsesHardwareID(t *testing.T) {
+	controller := snapshotController(helix.CatalogEntry{}, "Drive")
+	if controller["@controller"] != 19 {
+		t.Errorf("snapshot controller ID = %v, want 19", controller["@controller"])
 	}
 }

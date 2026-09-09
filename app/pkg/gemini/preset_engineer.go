@@ -280,41 +280,13 @@ func (c *Client) ChatPresetEngineer(ctx context.Context, rig *RigDescription, pr
 		}
 
 		for pName, pVal := range b.Params {
-			pVal = sanitizeParam(internalID, pName, pVal)
-			key := pName
-
-			// Heuristic for matching generic names to technical names
-			if _, exists := defaultData[key]; !exists {
-				lowName := strings.ToLower(pName)
-				found := false
-				alternatives := []string{}
-				if lowName == "gain" {
-					alternatives = []string{"Drive", "LeadGain", "Lead Drive", "ChVol", "Master"}
-				} else if lowName == "drive" {
-					alternatives = []string{"Gain", "LeadDrive", "Lead Gain", "Overdrive"}
-				} else if lowName == "volume" || lowName == "vol" {
-					alternatives = []string{"ChVol", "Master", "Level"}
-				} else if lowName == "mids" {
-					alternatives = []string{"Middle", "Mid"}
-				}
-
-				for _, alt := range alternatives {
-					if _, exists := defaultData[alt]; exists {
-						key = alt
-						found = true
-						break
-					}
-				}
-
-				if !found {
-					for actualKey := range defaultData {
-						if strings.EqualFold(actualKey, pName) {
-							key = actualKey
-							break
-						}
-					}
-				}
+			key, ok := resolveParamKey(defaultData, pName)
+			if !ok {
+				// Unknown keys are not valid Helix parameters and can make HX Edit
+				// or the hardware reject the whole preset.
+				continue
 			}
+			pVal = clampParam(entry, key, normalizeParamType(entry, key, sanitizeParam(internalID, key, pVal)))
 			finalParams[key] = pVal
 		}
 
@@ -426,46 +398,11 @@ func (c *Client) ChatPresetEngineer(ctx context.Context, rig *RigDescription, pr
 									snapshot := rig.Snapshots[s]
 									if overrides, ok := snapshot.Params[b.Name].(map[string]interface{}); ok {
 										for pName, pVal := range overrides {
-											// Map parameter name to technical Helix key
-											pKey := pName
-											// ... (pKey resolution logic follows)
-
-											// 1. Try exact match or common aliases
-											if _, exists := defaultData[pKey]; !exists {
-												// Heuristic for matching "Gain" or "Drive" to specific amp parameters
-												lowName := strings.ToLower(pName)
-												foundMatch := false
-
-												// List of alternatives to try
-												alternatives := []string{}
-												if lowName == "gain" {
-													alternatives = []string{"Drive", "LeadGain", "Lead Drive", "ChVol", "Master"}
-												} else if lowName == "drive" {
-													alternatives = []string{"Gain", "LeadDrive", "Lead Gain", "Overdrive"}
-												} else if lowName == "volume" || lowName == "vol" {
-													alternatives = []string{"ChVol", "Master", "Level"}
-												} else if lowName == "mids" {
-													alternatives = []string{"Middle", "Mid"}
-												}
-
-												for _, alt := range alternatives {
-													if _, exists := defaultData[alt]; exists {
-														pKey = alt
-														foundMatch = true
-														break
-													}
-												}
-
-												// 2. If no alias found, try a case-insensitive lookup
-												if !foundMatch {
-													for actualKey := range defaultData {
-														if strings.EqualFold(actualKey, pName) {
-															pKey = actualKey
-															break
-														}
-													}
-												}
+											pKey, ok := resolveParamKey(defaultData, pName)
+											if !ok {
+												continue
 											}
+											pVal = clampParam(entry, pKey, normalizeParamType(entry, pKey, sanitizeParam(internalID, pKey, pVal)))
 
 											// OPTIMIZATION: Check if this parameter actually varies across any snapshot or from baseline
 											// Only add controller if it actually changes something.
@@ -492,12 +429,7 @@ func (c *Client) ChatPresetEngineer(ctx context.Context, rig *RigDescription, pr
 														ctrls[blockKey] = make(map[string]interface{})
 													}
 													if bCtrls, ok := ctrls[blockKey].(map[string]interface{}); ok {
-														bCtrls[pKey] = map[string]interface{}{
-															"@controller":       9, // Snapshot Controller
-															"@max":              1.0,
-															"@min":              0.0,
-															"@snapshot_disable": false,
-														}
+														bCtrls[pKey] = snapshotController(entry, pKey)
 													}
 												}
 												// Set snapshot-specific value
@@ -924,6 +856,108 @@ func applyVariax(preset *helix.Preset, rig *RigDescription, hardwareModel string
 				}
 			}
 		}
+	}
+}
+
+func resolveParamKey(defaults map[string]interface{}, requested string) (string, bool) {
+	if _, ok := defaults[requested]; ok {
+		return requested, true
+	}
+
+	aliases := map[string][]string{
+		"gain":   {"Drive", "LeadGain", "Lead Drive", "ChVol", "Master"},
+		"drive":  {"Gain", "LeadDrive", "Lead Gain", "Overdrive"},
+		"volume": {"ChVol", "Master", "Level"},
+		"vol":    {"ChVol", "Master", "Level"},
+		"mids":   {"Middle", "Mid"},
+		"31hz":   {"31p25Hz"},
+		"62hz":   {"62p5Hz"},
+	}
+	if candidates, ok := aliases[strings.ToLower(requested)]; ok {
+		for _, candidate := range candidates {
+			if _, exists := defaults[candidate]; exists {
+				return candidate, true
+			}
+		}
+	}
+
+	for actual := range defaults {
+		if strings.EqualFold(actual, requested) {
+			return actual, true
+		}
+	}
+	return "", false
+}
+
+func parameterLimits(entry helix.CatalogEntry, key string) (float64, float64, bool) {
+	dict, ok := entry.Data["Controller_Dict"].(map[string]interface{})
+	if !ok {
+		return 0, 0, false
+	}
+	spec, ok := dict[key].(map[string]interface{})
+	if !ok {
+		return 0, 0, false
+	}
+	min, minOK := spec["@min"].(float64)
+	max, maxOK := spec["@max"].(float64)
+	return min, max, minOK && maxOK
+}
+
+func clampParam(entry helix.CatalogEntry, key string, value interface{}) interface{} {
+	number, ok := value.(float64)
+	if !ok {
+		return value
+	}
+	min, max, ok := parameterLimits(entry, key)
+	if !ok {
+		return value
+	}
+	if number < min {
+		return min
+	}
+	if number > max {
+		return max
+	}
+	return number
+}
+
+func normalizeParamType(entry helix.CatalogEntry, key string, value interface{}) interface{} {
+	defaults, ok := entry.Data["Defaults"].(map[string]interface{})
+	if !ok {
+		return value
+	}
+	defaultValue, ok := defaults[key]
+	if !ok {
+		return value
+	}
+
+	switch defaultValue.(type) {
+	case bool:
+		if _, ok := value.(bool); !ok {
+			return defaultValue
+		}
+	case string:
+		if _, ok := value.(string); !ok {
+			return defaultValue
+		}
+	case float64:
+		if _, ok := value.(float64); !ok {
+			return defaultValue
+		}
+	}
+	return value
+}
+
+func snapshotController(entry helix.CatalogEntry, key string) map[string]interface{} {
+	min, max := 0.0, 1.0
+	if catalogMin, catalogMax, ok := parameterLimits(entry, key); ok {
+		min, max = catalogMin, catalogMax
+	}
+	return map[string]interface{}{
+		"@controller":       19,
+		"@max":              max,
+		"@min":              min,
+		"@snapshot_disable": false,
 	}
 }
 
