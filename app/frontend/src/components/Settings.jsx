@@ -370,6 +370,28 @@ const Settings = ({ config, onSave }) => {
 
                     <div className="px-4 py-2">
                         <div className="flex flex-col flex-1 gap-4">
+                            {/* Default Instrument Toggle */}
+                            <div className="flex items-center justify-between p-4 bg-surface-light dark:bg-[#151c1e] rounded-xl border border-border-light dark:border-border-dark hover:border-primary/30 transition-all group">
+                                <div className="flex flex-col gap-0.5">
+                                    <p className="text-base font-medium text-slate-900 dark:text-white group-hover:text-primary transition-colors">{t('settings.defaultInstrument')}</p>
+                                    <p className="text-xs text-text-muted">{t('settings.defaultInstrumentHint')}</p>
+                                </div>
+                                <div className="flex bg-slate-200 dark:bg-border-dark p-1 rounded-lg">
+                                    <button
+                                        onClick={() => setLocalConfig({ ...localConfig, default_instrument: "Guitar" })}
+                                        className={`px-4 py-1.5 text-sm font-medium rounded-md transition-all ${localConfig.default_instrument === "Guitar" || !localConfig.default_instrument ? 'bg-white dark:bg-surface-dark shadow-sm text-primary' : 'text-text-muted hover:text-slate-900 dark:hover:text-white'}`}
+                                    >
+                                        Guitar
+                                    </button>
+                                    <button
+                                        onClick={() => setLocalConfig({ ...localConfig, default_instrument: "Bass" })}
+                                        className={`px-4 py-1.5 text-sm font-medium rounded-md transition-all ${localConfig.default_instrument === "Bass" ? 'bg-white dark:bg-surface-dark shadow-sm text-primary' : 'text-text-muted hover:text-slate-900 dark:hover:text-white'}`}
+                                    >
+                                        Bass
+                                    </button>
+                                </div>
+                            </div>
+
                             {/* Lang Toggle */}
                             <div className="flex flex-col gap-2">
                                 <p className="text-base font-medium leading-normal">Language</p>

@@ -12,7 +12,7 @@ import (
 )
 
 // ChatPresetEngineer takes the abstract rig and maps it to specific Helix Blocks, or refines an existing implementation
-func (c *Client) ChatPresetEngineer(ctx context.Context, rig *RigDescription, presetName string, history []ChatMessage, hardware string, defaultExp int, variaxEnabled bool, hardwareModel string) (*helix.Preset, error) {
+func (c *Client) ChatPresetEngineer(ctx context.Context, rig *RigDescription, presetName string, history []ChatMessage, hardware string, defaultExp int, variaxEnabled bool, hardwareModel string, defaultInstrument string) (*helix.Preset, error) {
 	// 1. Prepare Catalog Context
 	helix.DB.EnsureLoaded()
 
@@ -23,8 +23,18 @@ func (c *Client) ChatPresetEngineer(ctx context.Context, rig *RigDescription, pr
 		if cost == 0 {
 			cost = 3.0 // Reasonable default
 		}
-		availableModels.WriteString(fmt.Sprintf("- %s (Based on: %s) [DSP: %.1f%%]\n", e.Name, e.BasedOn, cost))
+		instrument := e.Instrument
+		if instrument == "" {
+			instrument = "General"
+		}
+		availableModels.WriteString(fmt.Sprintf("- %s (Based on: %s) [Instrument: %s] [DSP: %.1f%%]\n", e.Name, e.BasedOn, instrument, cost))
 	}
+
+	promptInstrument := rig.Instrument
+	if promptInstrument == "" {
+		promptInstrument = defaultInstrument
+	}
+	promptInstrument = normalizeInstrument(promptInstrument, defaultInstrument)
 
 	// 2. Hardware Capabilities
 	isDualDSP := strings.Contains(hardware, "Floor") || strings.Contains(hardware, "LT") || strings.Contains(hardware, "Rack")
@@ -40,6 +50,7 @@ func (c *Client) ChatPresetEngineer(ctx context.Context, rig *RigDescription, pr
 	
 	TARGET HARDWARE: %s
 	DSP CAPACITY: %s
+	INSTRUMENT CONTEXT: %s
 	
 	AVAILABLE MODELS:
 	%s
@@ -57,6 +68,7 @@ func (c *Client) ChatPresetEngineer(ctx context.Context, rig *RigDescription, pr
 	- High-end Amps, Cabs, and IRs take ~30-40%% each. Poly-FX and Stereo Reverbs/Delays take ~15-25%%.
 	- Path 1 is "path": 0, Path 2 is "path": 1.
 	- If the hardware has only 1 path, use "path": 0 for everything.
+	- BASS PRESETS: If INSTRUMENT CONTEXT is Bass, you MUST ONLY select Bass Amps and Bass Cabs from the list (e.g., SVT, Ampeg, GK, Mesa Bass). Do NOT select Guitar Amps/Cabs for Bass presets. Keep the routing simple. Avoid splitting into dual parallel chains (e.g., dual amps) unless explicitly necessary for the tone. Prefer a single chain for simplicity and DSP efficiency.
 
 	PARAMETER CONSTRAINTS:
 	- For Reverb blocks, NEVER set "Decay" or "VerbDecay" to its maximum value (1.0). Keep it at 0.7 or lower to avoid excessive noise/feedback loops.
@@ -79,7 +91,7 @@ func (c *Client) ChatPresetEngineer(ctx context.Context, rig *RigDescription, pr
 			{ "name": "Tube Screamer", "model_name": "Scream 808", "path": 0, "params": { "Gain": 0.5 } }
 		]
 	}
-	`, hardware, dspCapacity, availableModels.String())
+	`, hardware, dspCapacity, promptInstrument, availableModels.String())
 
 	// Truncate prompt if needed (though Gemini 1.5 Handle this well)
 	if len(sysPrompt) > 100000 {
@@ -129,17 +141,26 @@ func (c *Client) ChatPresetEngineer(ctx context.Context, rig *RigDescription, pr
 	}
 
 	jsonText := resp.Candidates[0].Content.Parts[0].Text
+	bassPreset := promptInstrument == "Bass"
+	useVariax := rig.UseVariax
+	if rig.Instrument == "" {
+		// Preserve compatibility with designs created before the resolved fields existed.
+		bassPreset = isBassPreset(rig, defaultInstrument)
+		useVariax = shouldApplyVariax(rig, variaxEnabled, defaultInstrument)
+	}
 
 	// 4. PRE-FLIGHT VARIAX SYNC: Ensure top-level fields are sync'd with Chain components
 	// (Agents are more reliable at updating the Chain/Params than top-level technical fields)
 	variaxCompName := ""
-	for _, comp := range rig.Chain {
-		if strings.Contains(strings.ToLower(comp.Type), "variax") || strings.Contains(strings.ToLower(comp.Name), "variax") {
-			variaxCompName = comp.Name
-			if rig.GuitarModel == "" || rig.GuitarModel == "None" {
-				rig.GuitarModel = comp.Settings
+	if useVariax {
+		for _, comp := range rig.Chain {
+			if strings.Contains(strings.ToLower(comp.Type), "variax") || strings.Contains(strings.ToLower(comp.Name), "variax") {
+				variaxCompName = comp.Name
+				if rig.GuitarModel == "" || rig.GuitarModel == "None" {
+					rig.GuitarModel = comp.Settings
+				}
+				break
 			}
-			break
 		}
 	}
 	// Sync snapshots with chain params if technical field is missing
@@ -210,6 +231,8 @@ func (c *Client) ChatPresetEngineer(ctx context.Context, rig *RigDescription, pr
 	// Loop and place blocks
 	path0Count := 0
 	path1Count := 0
+	hasAmp := false
+	hasCab := false
 
 	for _, b := range builderResp.Blocks {
 		// VIRTUAL BLOCK SKIP: Variax is handled globally via global/snapshot logic
@@ -231,9 +254,26 @@ func (c *Client) ChatPresetEngineer(ctx context.Context, rig *RigDescription, pr
 				internalID = entryID.InternalName
 				defaultData = entryID.Data["Defaults"].(map[string]interface{})
 			} else {
-				continue
+				if !bassPreset {
+					continue
+				}
+				fallback, ok := bassFallbackForRequest(b.ModelName, b.Name)
+				if !ok {
+					continue
+				}
+				entry = fallback
+				internalID = fallback.InternalName
+				defaultData = fallback.Data["Defaults"].(map[string]interface{})
 			}
 		}
+		if bassPreset {
+			entry = bassSafeModel(entry)
+			internalID = entry.InternalName
+			defaultData = entry.Data["Defaults"].(map[string]interface{})
+		}
+		modelType := strings.ToLower(internalID)
+		hasAmp = hasAmp || strings.Contains(modelType, "_amp") || strings.Contains(modelType, "_preamp")
+		hasCab = hasCab || strings.Contains(modelType, "_cab")
 
 		finalParams := make(map[string]interface{})
 		for k, v := range defaultData {
@@ -475,17 +515,21 @@ func (c *Client) ChatPresetEngineer(ctx context.Context, rig *RigDescription, pr
 		}
 	}
 
-	// 5. Detect Variax Intent and Apply
-	variaxRequested := variaxEnabled
-	if rig.GuitarModel != "" && rig.GuitarModel != "None" {
-		variaxRequested = true
-	}
-	for _, s := range rig.Snapshots {
-		if s.GuitarModel != "" && s.GuitarModel != "None" {
-			variaxRequested = true
-			break
+	if bassPreset {
+		if !hasAmp {
+			amp := bassFallbackEntry(false)
+			addBassFallbackBlock(preset, getDSP(0), amp, amp.Name, 1, path0Count)
+			path0Count++
+		}
+		if !hasCab {
+			cab := bassFallbackEntry(true)
+			addBassFallbackBlock(preset, getDSP(0), cab, cab.Name, 2, path0Count)
+			path0Count++
 		}
 	}
+
+	// 5. Detect Variax Intent and Apply
+	variaxRequested := useVariax
 
 	if variaxRequested {
 		applyVariax(preset, rig, hardwareModel)
@@ -575,6 +619,165 @@ func (c *Client) ChatPresetEngineer(ctx context.Context, rig *RigDescription, pr
 	}
 
 	return preset, nil
+}
+
+// isBassInstrument identifies bass defaults without treating unrelated guitar descriptions as bass intent.
+func isBassInstrument(instrument string) bool {
+	return strings.Contains(strings.ToLower(instrument), "bass")
+}
+
+// isBassPreset preserves legacy bass detection for designs created before instrument resolution was added.
+func isBassPreset(rig *RigDescription, instrument string) bool {
+	model := strings.ToLower(rig.GuitarModel)
+	if isBassInstrument(model) || strings.Contains(model, "stingray") || strings.Contains(model, "music man") {
+		return true
+	}
+	if rig.GuitarModel != "" && rig.GuitarModel != "None" {
+		return false
+	}
+	for _, component := range rig.Chain {
+		value := strings.ToLower(component.Name + " " + component.Description + " " + component.Settings)
+		if strings.Contains(value, "variax") {
+			return false
+		}
+		if strings.Contains(value, "bass") || strings.Contains(value, "gallien") || strings.Contains(value, "ampeg") || strings.Contains(value, "stingray") {
+			return true
+		}
+	}
+	return isBassInstrument(instrument)
+}
+
+// shouldApplyVariax applies the legacy Variax decision while preventing Variax use for bass designs.
+func shouldApplyVariax(rig *RigDescription, enabled bool, instrument string) bool {
+	if isBassPreset(rig, instrument) {
+		return false
+	}
+	if enabled || (rig.GuitarModel != "" && rig.GuitarModel != "None") {
+		return true
+	}
+	for _, snapshot := range rig.Snapshots {
+		if snapshot.GuitarModel != "" && snapshot.GuitarModel != "None" {
+			return true
+		}
+	}
+	return false
+}
+
+// bassSafeModel replaces a guitar-only amp or cab with a catalogued bass-compatible fallback.
+func bassSafeModel(entry helix.CatalogEntry) helix.CatalogEntry {
+	modelType := strings.ToLower(entry.InternalName)
+	isAmp := strings.Contains(modelType, "_amp") || strings.Contains(modelType, "_preamp")
+	isCab := strings.Contains(modelType, "_cab")
+	if !isAmp && !isCab || isBassCompatibleModel(entry) {
+		return entry
+	}
+
+	return bassFallbackEntry(isCab)
+}
+
+// bassFallbackForRequest maps an unresolved bass block request to a safe catalog entry.
+func bassFallbackForRequest(modelName, blockName string) (helix.CatalogEntry, bool) {
+	requested := strings.ToLower(modelName + " " + blockName)
+	isCab := false
+	if strings.Contains(requested, "cab") || strings.Contains(requested, "micir") ||
+		strings.Contains(requested, "1x10") || strings.Contains(requested, "1x15") ||
+		strings.Contains(requested, "2x15") || strings.Contains(requested, "4x10") ||
+		strings.Contains(requested, "6x10") || strings.Contains(requested, "8x10") {
+		isCab = true
+	}
+	if isCab {
+		return bassFallbackEntry(true), true
+	}
+	if strings.Contains(requested, "svt") || strings.Contains(requested, "ampeg") {
+		return bassFallbackEntry(false), true
+	}
+	if strings.Contains(requested, "cougar") || strings.Contains(requested, "gallien") {
+		entry, ok := helix.DB.FindByID("HD2_AmpGCougar800")
+		return entry, ok
+	}
+	return bassFallbackEntry(false), true
+}
+
+// bassFallbackEntry returns the standard bass amp or cab used when generation omits one.
+func bassFallbackEntry(isCab bool) helix.CatalogEntry {
+	if isCab {
+		entry, _ := helix.DB.FindByID("HD2_CabMicIr_8x10SVTAV")
+		return entry
+	}
+	entry, _ := helix.DB.FindByID("HD2_AmpSVBeastNrm")
+	return entry
+}
+
+// addBassFallbackBlock inserts a generated bass block and enables it in every snapshot.
+func addBassFallbackBlock(preset *helix.Preset, dsp map[string]interface{}, entry helix.CatalogEntry, name string, blockType, position int) {
+	if dsp == nil {
+		return
+	}
+	defaults, ok := entry.Data["Defaults"].(map[string]interface{})
+	if !ok {
+		return
+	}
+	params := make(map[string]interface{}, len(defaults)+6)
+	for key, value := range defaults {
+		params[key] = value
+	}
+	params["@name"] = name
+	params["@model"] = entry.InternalName
+	params["@type"] = blockType
+	params["@enabled"] = true
+	params["@position"] = position
+	params["@path"] = 0
+	blockKey := fmt.Sprintf("block%d", position)
+	dsp[blockKey] = params
+
+	data, ok := (*preset)["data"].(map[string]interface{})
+	if !ok {
+		return
+	}
+	tone, ok := data["tone"].(map[string]interface{})
+	if !ok {
+		return
+	}
+	for snapshotIndex := 0; snapshotIndex < 8; snapshotIndex++ {
+		snapshot, ok := tone[fmt.Sprintf("snapshot%d", snapshotIndex)].(map[string]interface{})
+		if !ok {
+			continue
+		}
+		blocks, ok := snapshot["blocks"].(map[string]interface{})
+		if !ok {
+			blocks = make(map[string]interface{})
+			snapshot["blocks"] = blocks
+		}
+		dspBlocks, ok := blocks["dsp0"].(map[string]interface{})
+		if !ok {
+			dspBlocks = make(map[string]interface{})
+			blocks["dsp0"] = dspBlocks
+		}
+		dspBlocks[blockKey] = true
+	}
+}
+
+// isBassCompatibleModel accepts catalog entries marked as bass or known bass hardware models.
+func isBassCompatibleModel(entry helix.CatalogEntry) bool {
+	if entry.Instrument == "Bass" {
+		return true
+	}
+	model := strings.ToLower(entry.Name + " " + entry.BasedOn + " " + entry.InternalName)
+	for _, modelID := range []string{
+		"ampbusyone", "ampcalibass", "ampcali400", "ampmandarinbass", "ampwoodyblue", "ampaguasledge", "ampagua51", "ampdelsol",
+		"cabmicir_1x12epicenter", "cabmicir_1x15ampeg", "cabmicir_2x15", "cabmicir_4x10garden", "cabmicir_4x10ampeg", "cabmicir_6x10cali", "cabmicir_8x10svt",
+		"cab1x12delsol", "cab1x15tuckngo", "cab1x18delsol", "cab1x18woody", "cab2x15brute", "cab4x10rhino", "cab6x10cali", "cab8x10svbeast",
+	} {
+		if strings.Contains(model, modelID) {
+			return true
+		}
+	}
+	for _, keyword := range []string{"bass", "svt", "ampeg", "aguilar", "gallien", "acoustic 360"} {
+		if strings.Contains(model, keyword) {
+			return true
+		}
+	}
+	return false
 }
 
 // applyVariax configures global and per-snapshot Variax models, tuning, controller metadata, and hardware type for a preset.
