@@ -30,6 +30,12 @@ func (c *Client) ChatPresetEngineer(ctx context.Context, rig *RigDescription, pr
 		availableModels.WriteString(fmt.Sprintf("- %s (Based on: %s) [Instrument: %s] [DSP: %.1f%%]\n", e.Name, e.BasedOn, instrument, cost))
 	}
 
+	promptInstrument := rig.Instrument
+	if promptInstrument == "" {
+		promptInstrument = defaultInstrument
+	}
+	promptInstrument = normalizeInstrument(promptInstrument, defaultInstrument)
+
 	// 2. Hardware Capabilities
 	isDualDSP := strings.Contains(hardware, "Floor") || strings.Contains(hardware, "LT") || strings.Contains(hardware, "Rack")
 	dspCapacity := "1 path of 100%"
@@ -85,7 +91,7 @@ func (c *Client) ChatPresetEngineer(ctx context.Context, rig *RigDescription, pr
 			{ "name": "Tube Screamer", "model_name": "Scream 808", "path": 0, "params": { "Gain": 0.5 } }
 		]
 	}
-	`, hardware, dspCapacity, defaultInstrument, availableModels.String())
+	`, hardware, dspCapacity, promptInstrument, availableModels.String())
 
 	// Truncate prompt if needed (though Gemini 1.5 Handle this well)
 	if len(sysPrompt) > 100000 {
@@ -135,7 +141,7 @@ func (c *Client) ChatPresetEngineer(ctx context.Context, rig *RigDescription, pr
 	}
 
 	jsonText := resp.Candidates[0].Content.Parts[0].Text
-	bassPreset := rig.Instrument == "Bass"
+	bassPreset := promptInstrument == "Bass"
 	useVariax := rig.UseVariax
 	if rig.Instrument == "" {
 		// Preserve compatibility with designs created before the resolved fields existed.

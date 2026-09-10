@@ -121,6 +121,24 @@ func TestResolvedVariaxDecision(t *testing.T) {
 	}
 }
 
+func TestInstrumentResolutionAndVariaxFiltering(t *testing.T) {
+	if got := normalizeInstrument("bass", "Guitar"); got != "Bass" {
+		t.Fatalf("normalizeInstrument case variant = %q, want Bass", got)
+	}
+	if got := normalizeInstrument("invalid", "Bass"); got != "Bass" {
+		t.Fatalf("normalizeInstrument fallback = %q, want Bass", got)
+	}
+
+	chain := filterVariaxComponents([]RigComponent{
+		{Type: "variax", Name: "Line6 Variax"},
+		{Type: "amp", Name: "Bass Amp"},
+		{Type: "pedal", Name: "Variax Controller"},
+	})
+	if len(chain) != 1 || chain[0].Name != "Bass Amp" {
+		t.Fatalf("filterVariaxComponents() = %#v, want only Bass Amp", chain)
+	}
+}
+
 func TestBassSafeModel(t *testing.T) {
 	helix.DB.EnsureLoaded()
 	for _, model := range []string{

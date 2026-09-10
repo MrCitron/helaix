@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"strings"
 
 	"google.golang.org/genai"
 )
@@ -156,12 +157,40 @@ func (c *Client) ChatSoundEngineer(ctx context.Context, history []ChatMessage, h
 	if err := json.Unmarshal([]byte(jsonText), &result); err != nil {
 		return nil, fmt.Errorf("failed to parse Sound Engineer JSON: %v. Raw: %s", err, jsonText)
 	}
-	if result.Instrument != "Guitar" && result.Instrument != "Bass" {
-		result.Instrument = defaultInstrument
-	}
+	result.Instrument = normalizeInstrument(result.Instrument, defaultInstrument)
 	result.UseVariax = resolveVariaxDecision(result.Instrument, variaxEnabled)
+	if !result.UseVariax {
+		result.Chain = filterVariaxComponents(result.Chain)
+	}
 
 	return &result, nil
+}
+
+// normalizeInstrument converts model output to the canonical instrument value and uses the configured default for invalid output.
+func normalizeInstrument(instrument, fallback string) string {
+	switch strings.ToLower(strings.TrimSpace(instrument)) {
+	case "guitar":
+		return "Guitar"
+	case "bass":
+		return "Bass"
+	}
+	if strings.EqualFold(strings.TrimSpace(fallback), "bass") {
+		return "Bass"
+	}
+	return "Guitar"
+}
+
+// filterVariaxComponents removes invalid Variax chain entries after the resolved decision disables Variax.
+func filterVariaxComponents(chain []RigComponent) []RigComponent {
+	filtered := chain[:0]
+	for _, component := range chain {
+		value := strings.ToLower(component.Type + " " + component.Name)
+		if strings.Contains(value, "variax") {
+			continue
+		}
+		filtered = append(filtered, component)
+	}
+	return filtered
 }
 
 // resolveVariaxDecision allows Variax only for guitars when automatic control is enabled.

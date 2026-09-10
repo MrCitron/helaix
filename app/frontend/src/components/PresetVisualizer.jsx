@@ -94,7 +94,8 @@ function PresetVisualizer({ preset, design, compact = false, activeSnapIdx: prop
     const hasVariaxData = preset.data.tone.variax && preset.data.tone.variax["@variax_model"] !== 0;
     const hasVariaxControllers = preset.data.tone.controller?.variax && Object.keys(preset.data.tone.controller.variax).length > 0;
 
-    if (designHasVariax && (hasVariaxData || hasVariaxControllers)) {
+    const showVariax = design?.use_variax ?? designHasVariax;
+    if (showVariax && (hasVariaxData || hasVariaxControllers)) {
         const modelId = activeVariax?.["@variax_model"] || 0;
         const variaxType = preset.data.meta?.variax_type || "jtv";
         const getName = (id) => {
