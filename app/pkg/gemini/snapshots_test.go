@@ -80,6 +80,7 @@ func TestSnapshotMapping(t *testing.T) {
 	// based on the logic audit.
 }
 
+// TestShouldApplyVariax verifies that legacy Variax inference never enables Variax for bass designs.
 func TestShouldApplyVariax(t *testing.T) {
 	rig := &RigDescription{
 		GuitarModel: "Fender Precision Bass",
@@ -103,6 +104,7 @@ func TestShouldApplyVariax(t *testing.T) {
 	}
 }
 
+// TestResolvedVariaxDecision verifies the canonical Guitar/Bass Variax decision matrix.
 func TestResolvedVariaxDecision(t *testing.T) {
 	cases := []struct {
 		instrument string
@@ -121,6 +123,7 @@ func TestResolvedVariaxDecision(t *testing.T) {
 	}
 }
 
+// TestInstrumentResolutionAndVariaxFiltering verifies canonical instrument output and invalid Variax filtering.
 func TestInstrumentResolutionAndVariaxFiltering(t *testing.T) {
 	if got := normalizeInstrument("bass", "Guitar"); got != "Bass" {
 		t.Fatalf("normalizeInstrument case variant = %q, want Bass", got)
@@ -139,6 +142,7 @@ func TestInstrumentResolutionAndVariaxFiltering(t *testing.T) {
 	}
 }
 
+// TestBassSafeModel verifies bass catalog coverage, fallback mapping, and block insertion.
 func TestBassSafeModel(t *testing.T) {
 	helix.DB.EnsureLoaded()
 	for _, model := range []string{

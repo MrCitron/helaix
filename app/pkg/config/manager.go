@@ -27,6 +27,7 @@ type Manager struct {
 	configPath string
 }
 
+// NewManager creates a configuration manager with platform-appropriate defaults and storage paths.
 func NewManager() *Manager {
 	configDir, _ := os.UserConfigDir()
 	configPath := filepath.Join(configDir, "helaix", "settings.json")
