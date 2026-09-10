@@ -24,6 +24,7 @@ func TestSnapshotMapping(t *testing.T) {
 			{
 				Name:         "Main",
 				ActiveBlocks: []string{"Distortion"},
+				GuitarModel:  "Gibson Les Paul (Pickup Pos 4)",
 			},
 		},
 	}
@@ -50,6 +51,9 @@ func TestSnapshotMapping(t *testing.T) {
 						"dsp0": map[string]interface{}{},
 					},
 				},
+				"snapshot1": map[string]interface{}{
+					"controllers": map[string]interface{}{},
+				},
 			},
 		},
 	}
@@ -59,10 +63,10 @@ func TestSnapshotMapping(t *testing.T) {
 
 		tone := (*preset)["data"].(map[string]interface{})["tone"].(map[string]interface{})
 
-		// Global Variax check (Stratocaster -> 15)
+		// Global Variax follows snapshot 0 because Helix loads the global value first.
 		vGlobal := tone["variax"].(map[string]interface{})
-		if vGlobal["@variax_model"] != 15 {
-			t.Errorf("Global Variax model = %v, want 15", vGlobal["@variax_model"])
+		if vGlobal["@variax_model"] != 50 {
+			t.Errorf("Global Variax model = %v, want 50", vGlobal["@variax_model"])
 		}
 
 		// Snapshot 0 Override (Acoustic -> 50)
@@ -70,6 +74,14 @@ func TestSnapshotMapping(t *testing.T) {
 		if v, ok := s0["variax"].(map[string]interface{}); ok {
 			if v["@variax_model"] != 50 {
 				t.Errorf("Snapshot 0 Variax model = %v, want 50", v["@variax_model"])
+			}
+		}
+
+		// Snapshot 1 keeps its explicit Lester 4 override (17).
+		s1 := tone["snapshot1"].(map[string]interface{})
+		if v, ok := s1["variax"].(map[string]interface{}); ok {
+			if v["@variax_model"] != 17 {
+				t.Errorf("Snapshot 1 Variax model = %v, want 17", v["@variax_model"])
 			}
 		}
 	})

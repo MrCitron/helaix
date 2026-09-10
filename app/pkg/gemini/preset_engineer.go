@@ -813,7 +813,11 @@ func applyVariax(preset *helix.Preset, rig *RigDescription, hardwareModel string
 	}
 
 	confPath := "pkg/helix/data/variax_models.json"
-	configBytes, _ := os.ReadFile(confPath)
+	configBytes, err := os.ReadFile(confPath)
+	if err != nil {
+		// Go tests execute with the package directory as the working directory.
+		configBytes, _ = os.ReadFile("../helix/data/variax_models.json")
+	}
 	var root ConfigRoot
 	if configBytes != nil {
 		json.Unmarshal(configBytes, &root)
@@ -846,6 +850,9 @@ func applyVariax(preset *helix.Preset, rig *RigDescription, hardwareModel string
 					break
 				}
 			}
+		}
+		if !ok {
+			cfg, ok = root.Configs["standard"]
 		}
 		if ok && cfg.Inherits != "" {
 			cfg = root.Configs[cfg.Inherits]
@@ -894,6 +901,30 @@ func applyVariax(preset *helix.Preset, rig *RigDescription, hardwareModel string
 			return baseID + (variant - 1)
 		}
 		return getFallback()
+	}
+
+	resolveSnapshotModel := func(snapshot Snapshot) int {
+		modelName := snapshot.GuitarModel
+		if modelName == "" || modelName == "None" {
+			for blockName, blockParams := range snapshot.Params {
+				if !strings.Contains(strings.ToLower(blockName), "variax") {
+					continue
+				}
+				paramsMap, ok := blockParams.(map[string]interface{})
+				if !ok {
+					continue
+				}
+				if model, ok := paramsMap["Model"].(string); ok {
+					modelName = model
+				} else if model, ok := paramsMap["Settings"].(string); ok {
+					modelName = model
+				}
+			}
+		}
+		if modelName == "" || modelName == "None" {
+			return -1
+		}
+		return mapModel(modelName, hardwareModel)
 	}
 
 	// Helper to get tuning offsets (Hardware-Aware JSON Driven)
@@ -960,6 +991,13 @@ func applyVariax(preset *helix.Preset, rig *RigDescription, hardwareModel string
 
 	// 1. Global Model Selection
 	modelID := mapModel(rig.GuitarModel, hardwareModel)
+	if len(rig.Snapshots) > 0 {
+		if snapshotModelID := resolveSnapshotModel(rig.Snapshots[0]); snapshotModelID >= 0 {
+			// Helix loads the global value before applying snapshot controllers.
+			// Keep it aligned with snapshot0 while preserving per-snapshot overrides.
+			modelID = snapshotModelID
+		}
+	}
 	if modelID >= 0 {
 		v["@variax_model"] = modelID
 	}
@@ -1022,31 +1060,8 @@ func applyVariax(preset *helix.Preset, rig *RigDescription, hardwareModel string
 
 				// Fetch current model (default to global if not specified for this snapshot)
 				currentModelID := modelID
-				sModelStr := ""
 				if s < len(rig.Snapshots) {
-					sModelStr = rig.Snapshots[s].GuitarModel
-				}
-
-				// FALLBACK: Search snapshot params for metadata if field is empty
-				if s < len(rig.Snapshots) && (sModelStr == "" || sModelStr == "None") {
-					if rig.Snapshots[s].Params != nil {
-						for bName, bParams := range rig.Snapshots[s].Params {
-							if strings.Contains(strings.ToLower(bName), "variax") {
-								if paramsMap, ok := bParams.(map[string]interface{}); ok {
-									// Sound Engineer often puts it in a 'Model' or 'Settings' key inside params
-									if m, ok := paramsMap["Model"].(string); ok {
-										sModelStr = m
-									} else if m, ok := paramsMap["Settings"].(string); ok {
-										sModelStr = m
-									}
-								}
-							}
-						}
-					}
-				}
-
-				if sModelStr != "" && sModelStr != "None" {
-					sModelID := mapModel(sModelStr, hardwareModel)
+					sModelID := resolveSnapshotModel(rig.Snapshots[s])
 					if sModelID >= 0 {
 						currentModelID = sModelID
 					}
