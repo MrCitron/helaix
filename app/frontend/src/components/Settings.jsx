@@ -17,6 +17,8 @@ const Settings = ({ config, onSave }) => {
     const [logPath, setLogPath] = useState('');
     const [loadingLogs, setLoadingLogs] = useState(false);
     const [logsCopied, setLogsCopied] = useState(false);
+    const [logsCleared, setLogsCleared] = useState(false);
+    const [logActionError, setLogActionError] = useState('');
 
     useEffect(() => {
         const fetchDefault = async () => {
@@ -91,19 +93,22 @@ const Settings = ({ config, onSave }) => {
         }
     };
 
+    // Load the log location and bounded tail displayed in the diagnostics panel.
     const refreshLogs = async () => {
         setLoadingLogs(true);
         try {
-            const [path, content] = await Promise.all([GxGetLogPath(), GxReadLog(200)]);
+            const path = await GxGetLogPath();
             setLogPath(path || '');
+            const content = await GxReadLog(200);
             setLogContent(content || '');
         } catch (err) {
-            setLogContent(`Unable to read log: ${err}`);
+            setLogContent(`${t('settings.readLogsFailed')}: ${err}`);
         } finally {
             setLoadingLogs(false);
         }
     };
 
+    // Load recent log entries when the diagnostics panel is opened.
     const handleToggleLogs = async () => {
         const nextShowLogs = !showLogs;
         setShowLogs(nextShowLogs);
@@ -112,16 +117,36 @@ const Settings = ({ config, onSave }) => {
         }
     };
 
+    // Copy the visible log text and report whether clipboard access succeeded.
     const handleCopyLogs = async () => {
-        await navigator.clipboard.writeText(logContent);
-        setLogsCopied(true);
-        setTimeout(() => setLogsCopied(false), 2000);
+        setLogActionError('');
+        setLogsCleared(false);
+        setLogsCopied(false);
+        try {
+            await navigator.clipboard.writeText(logContent);
+            setLogsCopied(true);
+            setTimeout(() => setLogsCopied(false), 2000);
+        } catch (err) {
+            setLogsCopied(false);
+            setLogActionError(`${t('settings.copyLogsFailed')}: ${err}`);
+        }
     };
 
+    // Clear the persisted log after confirmation and surface any backend failure.
     const handleClearLogs = async () => {
         if (!window.confirm(t('settings.confirmClearLogs'))) return;
-        await GxClearLog();
-        setLogContent('');
+        setLogActionError('');
+        setLogsCleared(false);
+        setLogsCopied(false);
+        try {
+            await GxClearLog();
+            setLogContent('');
+            setLogsCleared(true);
+            setTimeout(() => setLogsCleared(false), 2000);
+        } catch (err) {
+            setLogsCleared(false);
+            setLogActionError(`${t('settings.clearLogsFailed')}: ${err}`);
+        }
     };
 
     const handleBrowse = async () => {
@@ -525,6 +550,8 @@ const Settings = ({ config, onSave }) => {
                                     {t('settings.clearLogs')}
                                 </button>
                             </div>
+                            {logsCleared && <p className="text-xs text-green-500" role="status">{t('settings.logsCleared')}</p>}
+                            {logActionError && <p className="text-xs text-red-400" role="alert">{logActionError}</p>}
                         </div>}
                     </div>
                 </section>

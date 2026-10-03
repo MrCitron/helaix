@@ -4,10 +4,12 @@ import (
 	"HelAIx/pkg/config"
 	"HelAIx/pkg/gemini"
 	"HelAIx/pkg/helix"
+	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"log"
 	"os"
 	"path/filepath"
@@ -18,56 +20,92 @@ import (
 	"google.golang.org/genai"
 )
 
+const (
+	maxLogBytes       int64 = 1 << 20
+	maxLogEntryBytes        = 4 << 10
+	logReadChunkBytes       = 4 << 10
+)
+
 // App struct
 type App struct {
-	ctx     context.Context
-	config  *config.Manager
-	logger  *log.Logger
-	logPath string
-	logMu   sync.Mutex
+	ctx        context.Context
+	config     *config.Manager
+	logger     *log.Logger
+	logFile    *os.File
+	logPath    string
+	logInitErr error
+	logMu      sync.Mutex
 }
 
 // NewApp creates a new App application struct
 func NewApp() *App {
-	app := &App{
-		config: config.NewManager(),
+	logger, logFile, logPath, logInitErr := newAppLogger()
+	return &App{
+		config:     config.NewManager(),
+		logger:     logger,
+		logFile:    logFile,
+		logPath:    logPath,
+		logInitErr: logInitErr,
 	}
-	app.logger, app.logPath = newAppLogger()
-	return app
 }
 
-func newAppLogger() (*log.Logger, string) {
+// newAppLogger opens the per-user log file and falls back to stderr if setup fails.
+func newAppLogger() (*log.Logger, *os.File, string, error) {
+	stderrLogger := log.New(os.Stderr, "helaix ", log.LstdFlags)
 	configDir, err := os.UserConfigDir()
 	if err != nil {
-		return log.New(os.Stderr, "helaix ", log.LstdFlags), ""
+		return stderrLogger, nil, "", fmt.Errorf("resolve user config directory: %w", err)
 	}
 
 	logPath := filepath.Join(configDir, "helaix", "helaix.log")
 	if err := os.MkdirAll(filepath.Dir(logPath), 0700); err != nil {
-		return log.New(os.Stderr, "helaix ", log.LstdFlags), ""
+		return stderrLogger, nil, logPath, fmt.Errorf("create log directory: %w", err)
 	}
 
 	file, err := os.OpenFile(logPath, os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0600)
 	if err != nil {
-		return log.New(os.Stderr, "helaix ", log.LstdFlags), ""
+		return stderrLogger, nil, logPath, fmt.Errorf("open log file: %w", err)
 	}
-	return log.New(file, "helaix ", log.LstdFlags), logPath
+	return log.New(file, "helaix ", log.LstdFlags), file, logPath, nil
 }
 
+// logAIError appends a bounded diagnostic entry without recording prompts or generated content.
 func (a *App) logAIError(operation string, model string, err error) {
 	a.logMu.Lock()
 	defer a.logMu.Unlock()
 
-	if a.logger == nil {
+	if a.logger == nil || err == nil {
 		return
 	}
 
 	var apiErr genai.APIError
+	var entry string
 	if errors.As(err, &apiErr) {
-		a.logger.Printf("AI request failed operation=%s model=%s code=%d status=%q message=%q", operation, model, apiErr.Code, apiErr.Status, apiErr.Message)
-		return
+		entry = fmt.Sprintf("AI request failed operation=%s model=%s code=%d status=%q message=%q", operation, model, apiErr.Code, apiErr.Status, apiErr.Message)
+	} else {
+		entry = fmt.Sprintf("AI request failed operation=%s model=%s error=%q", operation, model, err.Error())
+		if rawResponse := strings.Index(entry, ". Raw:"); rawResponse >= 0 {
+			entry = entry[:rawResponse] + ". raw response omitted"
+		}
 	}
-	a.logger.Printf("AI request failed operation=%s model=%s error=%q", operation, model, err.Error())
+	if len(entry) > maxLogEntryBytes {
+		entry = strings.ToValidUTF8(entry[:maxLogEntryBytes-15], "�") + " [truncated]"
+	}
+
+	if a.logFile != nil {
+		info, statErr := a.logFile.Stat()
+		if statErr != nil {
+			log.Printf("helaix: inspect log file before append: %v", statErr)
+			return
+		}
+		if info.Size()+int64(len(entry))+64 > maxLogBytes {
+			if truncateErr := a.logFile.Truncate(0); truncateErr != nil {
+				log.Printf("helaix: rotate log file before append: %v", truncateErr)
+				return
+			}
+		}
+	}
+	a.logger.Print(entry)
 }
 
 // startup is called when the app starts. The context is saved
@@ -130,9 +168,12 @@ func (a *App) GxChatPresetEngineer(rig gemini.RigDescription, presetName string,
 	return result, err
 }
 
-// GxGetLogPath returns the local application log path for troubleshooting.
-func (a *App) GxGetLogPath() string {
-	return a.logPath
+// GxGetLogPath returns the local log path or its initialization error.
+func (a *App) GxGetLogPath() (string, error) {
+	if a.logInitErr != nil {
+		return a.logPath, fmt.Errorf("application log is unavailable: %w", a.logInitErr)
+	}
+	return a.logPath, nil
 }
 
 // GxReadLog returns the most recent log lines for troubleshooting.
@@ -144,19 +185,79 @@ func (a *App) GxReadLog(maxLines int) (string, error) {
 	a.logMu.Lock()
 	defer a.logMu.Unlock()
 
-	data, err := os.ReadFile(a.logPath)
+	if a.logInitErr != nil {
+		return "", fmt.Errorf("application log is unavailable: %w", a.logInitErr)
+	}
+	if a.logPath == "" {
+		return "", fmt.Errorf("application log path is unavailable")
+	}
+
+	file, err := os.Open(a.logPath)
 	if err != nil {
 		if os.IsNotExist(err) {
 			return "", nil
 		}
 		return "", err
 	}
+	defer file.Close()
 
-	lines := strings.Split(strings.TrimRight(string(data), "\r\n"), "\n")
+	info, err := file.Stat()
+	if err != nil {
+		return "", err
+	}
+	if info.Size() == 0 {
+		return "", nil
+	}
+
+	start := info.Size() - maxLogBytes
+	if start < 0 {
+		start = 0
+	}
+	position := info.Size()
+	lineBreaks := 0
+	chunks := make([][]byte, 0)
+	for position > start && lineBreaks <= maxLines {
+		chunkSize := int64(logReadChunkBytes)
+		if position-start < chunkSize {
+			chunkSize = position - start
+		}
+		position -= chunkSize
+		chunk := make([]byte, int(chunkSize))
+		read, readErr := file.ReadAt(chunk, position)
+		if readErr != nil && !errors.Is(readErr, io.EOF) {
+			return "", readErr
+		}
+		chunk = chunk[:read]
+		lineBreaks += bytes.Count(chunk, []byte{'\n'})
+		chunks = append(chunks, chunk)
+	}
+
+	data := make([]byte, 0, int(info.Size()-position))
+	for i := len(chunks) - 1; i >= 0; i-- {
+		data = append(data, chunks[i]...)
+	}
+	if position > 0 {
+		previousByte := []byte{0}
+		if _, readErr := file.ReadAt(previousByte, position-1); readErr != nil && !errors.Is(readErr, io.EOF) {
+			return "", readErr
+		}
+		if previousByte[0] != '\n' {
+			if firstLineBreak := bytes.IndexByte(data, '\n'); firstLineBreak >= 0 {
+				data = data[firstLineBreak+1:]
+			} else {
+				data = nil
+			}
+		}
+	}
+	data = bytes.TrimRight(data, "\r\n")
+	if len(data) == 0 {
+		return "", nil
+	}
+	lines := bytes.Split(data, []byte{'\n'})
 	if len(lines) > maxLines {
 		lines = lines[len(lines)-maxLines:]
 	}
-	return strings.Join(lines, "\n"), nil
+	return string(bytes.Join(lines, []byte{'\n'})), nil
 }
 
 // GxClearLog removes the local log contents while keeping the log file available.
@@ -164,8 +265,11 @@ func (a *App) GxClearLog() error {
 	a.logMu.Lock()
 	defer a.logMu.Unlock()
 
+	if a.logInitErr != nil {
+		return fmt.Errorf("application log is unavailable: %w", a.logInitErr)
+	}
 	if a.logPath == "" {
-		return nil
+		return fmt.Errorf("application log path is unavailable")
 	}
 	return os.Truncate(a.logPath, 0)
 }

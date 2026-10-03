@@ -106,7 +106,11 @@ const translations = {
             clearLogs: "Clear logs",
             openLogFolder: "Open folder",
             logsCopied: "Logs copied",
+            logsCleared: "Logs cleared",
             confirmClearLogs: "Clear the application log?",
+            readLogsFailed: "Unable to read application logs",
+            copyLogsFailed: "Unable to copy logs",
+            clearLogsFailed: "Unable to clear application logs",
             noLogs: "No log entries yet.",
             logWarning: "Check the content before sharing it with support.",
             logPath: "Log file"
@@ -217,7 +221,11 @@ const translations = {
             clearLogs: "Effacer les logs",
             openLogFolder: "Ouvrir le dossier",
             logsCopied: "Logs copiés",
+            logsCleared: "Logs effacés",
             confirmClearLogs: "Effacer le fichier de log de l’application ?",
+            readLogsFailed: "Impossible de lire les logs de l’application",
+            copyLogsFailed: "Impossible de copier les logs",
+            clearLogsFailed: "Impossible d’effacer les logs de l’application",
             noLogs: "Aucune entrée de log pour le moment.",
             logWarning: "Vérifiez le contenu avant de le partager avec le support.",
             logPath: "Fichier de log"
