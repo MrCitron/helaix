@@ -5,6 +5,7 @@ import Settings from './components/Settings';
 import Sidebar from './components/Sidebar';
 import DeleteConfirmationModal from './components/DeleteConfirmationModal';
 
+/** Root component that loads configuration and switches between chat and Settings views. */
 function App() {
     const [config, setConfig] = useState(null);
     const [view, setView] = useState('chat'); // 'chat' | 'settings'
@@ -22,6 +23,9 @@ function App() {
 
     const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(window.innerWidth < 1024);
     const [deleteConfirmId, setDeleteConfirmId] = useState(null);
+
+    /** Opens Settings so a chat failure can lead directly to the diagnostics panel. */
+    const openSettings = () => setView('settings');
 
     // Save history whenever it changes
     useEffect(() => {
@@ -164,7 +168,7 @@ function App() {
                         chatData={currentChat}
                         onUpdateChat={updateCurrentChat}
                         onNewChat={createNewChat}
-                        onOpenSettings={() => setView('settings')}
+                        onOpenSettings={openSettings}
                     />
                 )}
                 {view === 'settings' && <Settings config={config || {}} onSave={handleConfigSave} />}

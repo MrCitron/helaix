@@ -3,6 +3,7 @@ import { useI18n } from '../i18n';
 import { GxSaveConfig, GxTestConnection, GxSelectFolder, GxGetDefaultOutputPath, GxListModels, GxGetLogPath, GxReadLog, GxClearLog, GxOpenFolderOfFile } from '../../wailsjs/go/main/App';
 import { HelixIcons } from './IconLibrary';
 
+/** Settings screen for AI, hardware, interface preferences, and application diagnostics. */
 const Settings = ({ config, onSave }) => {
     const { t, lang, changeLang } = useI18n();
     const [localConfig, setLocalConfig] = useState({ ...config });
@@ -93,7 +94,7 @@ const Settings = ({ config, onSave }) => {
         }
     };
 
-    // Load the log location and bounded tail displayed in the diagnostics panel.
+    /** Load the log location and bounded tail displayed in the diagnostics panel. */
     const refreshLogs = async () => {
         setLoadingLogs(true);
         try {
@@ -108,7 +109,7 @@ const Settings = ({ config, onSave }) => {
         }
     };
 
-    // Load recent log entries when the diagnostics panel is opened.
+    /** Load recent log entries when the diagnostics panel is opened. */
     const handleToggleLogs = async () => {
         const nextShowLogs = !showLogs;
         setShowLogs(nextShowLogs);
@@ -117,7 +118,7 @@ const Settings = ({ config, onSave }) => {
         }
     };
 
-    // Copy the visible log text and report whether clipboard access succeeded.
+    /** Copy visible log text and report whether clipboard access succeeded. */
     const handleCopyLogs = async () => {
         setLogActionError('');
         setLogsCleared(false);
@@ -132,7 +133,7 @@ const Settings = ({ config, onSave }) => {
         }
     };
 
-    // Clear the persisted log after confirmation and surface any backend failure.
+    /** Clear the persisted log after confirmation and surface any backend failure. */
     const handleClearLogs = async () => {
         if (!window.confirm(t('settings.confirmClearLogs'))) return;
         setLogActionError('');

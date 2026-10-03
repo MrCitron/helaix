@@ -37,7 +37,7 @@ type App struct {
 	logMu      sync.Mutex
 }
 
-// NewApp creates a new App application struct
+// NewApp constructs the application and retains any logger setup error for the diagnostics UI.
 func NewApp() *App {
 	logger, logFile, logPath, logInitErr := newAppLogger()
 	return &App{
@@ -128,7 +128,7 @@ func (a *App) GxSaveConfig(cfg config.AppConfig) string {
 	return ""
 }
 
-// GxChatSoundEngineer calls the Sound Engineer Agent with history
+// GxChatSoundEngineer calls the design agent and logs failures without storing prompt content.
 func (a *App) GxChatSoundEngineer(history []gemini.ChatMessage) (*gemini.RigDescription, error) {
 	cfg := a.config.Get()
 	if cfg.ApiKey == "" {
@@ -148,7 +148,7 @@ func (a *App) GxChatSoundEngineer(history []gemini.ChatMessage) (*gemini.RigDesc
 	return result, err
 }
 
-// GxChatPresetEngineer calls the Preset Engineer Agent with history and baseline rig
+// GxChatPresetEngineer builds or refines a preset and logs failures without storing prompt content.
 func (a *App) GxChatPresetEngineer(rig gemini.RigDescription, presetName string, history []gemini.ChatMessage) (*helix.Preset, error) {
 	cfg := a.config.Get()
 	if cfg.ApiKey == "" {
@@ -318,7 +318,7 @@ func (a *App) GxSaveFile(preset helix.Preset, filename string) (string, error) {
 	return fullPath, err
 }
 
-// GxListModels returns the available models from the provider
+// GxListModels lists generation-capable models and logs provider request failures.
 func (a *App) GxListModels(apiKey string, modelName string) ([]string, error) {
 	if apiKey == "" {
 		return []string{}, nil
@@ -372,7 +372,7 @@ func (a *App) GxGetDefaultOutputPath() string {
 	return filepath.Join(homeDir, "Documents", "helaix")
 }
 
-// GxTestConnection validates the API key by listing models
+// GxTestConnection validates the API key by listing models and logs provider failures.
 func (a *App) GxTestConnection(apiKey string, modelName string) (string, error) {
 	if apiKey == "" {
 		return "", fmt.Errorf("API Key is missing")

@@ -6,6 +6,7 @@ import MessageVisualizer from './MessageVisualizer';
 import ChatInput from './ChatInput';
 import ExportModal from './ExportModal';
 
+/** Renders the conversation and routes AI failures to the application diagnostics view. */
 const MainScreen = ({ config, chatData, onUpdateChat, onNewChat, onOpenSettings }) => {
     const { t } = useI18n();
     const [loading, setLoading] = React.useState(false);
