@@ -4,27 +4,108 @@ import (
 	"HelAIx/pkg/config"
 	"HelAIx/pkg/gemini"
 	"HelAIx/pkg/helix"
+	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
+	"io"
+	"log"
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
 
 	"github.com/wailsapp/wails/v2/pkg/runtime"
+	"google.golang.org/genai"
+)
+
+const (
+	maxLogBytes       int64 = 1 << 20
+	maxLogEntryBytes        = 4 << 10
+	logReadChunkBytes       = 4 << 10
 )
 
 // App struct
 type App struct {
-	ctx    context.Context
-	config *config.Manager
+	ctx        context.Context
+	config     *config.Manager
+	logger     *log.Logger
+	logFile    *os.File
+	logPath    string
+	logInitErr error
+	logMu      sync.Mutex
 }
 
-// NewApp creates a new App application struct
+// NewApp constructs the application and retains any logger setup error for the diagnostics UI.
 func NewApp() *App {
+	logger, logFile, logPath, logInitErr := newAppLogger()
 	return &App{
-		config: config.NewManager(),
+		config:     config.NewManager(),
+		logger:     logger,
+		logFile:    logFile,
+		logPath:    logPath,
+		logInitErr: logInitErr,
 	}
+}
+
+// newAppLogger opens the per-user log file and falls back to stderr if setup fails.
+func newAppLogger() (*log.Logger, *os.File, string, error) {
+	stderrLogger := log.New(os.Stderr, "helaix ", log.LstdFlags)
+	configDir, err := os.UserConfigDir()
+	if err != nil {
+		return stderrLogger, nil, "", fmt.Errorf("resolve user config directory: %w", err)
+	}
+
+	logPath := filepath.Join(configDir, "helaix", "helaix.log")
+	if err := os.MkdirAll(filepath.Dir(logPath), 0700); err != nil {
+		return stderrLogger, nil, logPath, fmt.Errorf("create log directory: %w", err)
+	}
+
+	file, err := os.OpenFile(logPath, os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0600)
+	if err != nil {
+		return stderrLogger, nil, logPath, fmt.Errorf("open log file: %w", err)
+	}
+	return log.New(file, "helaix ", log.LstdFlags), file, logPath, nil
+}
+
+// logAIError appends a bounded diagnostic entry without recording prompts or generated content.
+func (a *App) logAIError(operation string, model string, err error) {
+	a.logMu.Lock()
+	defer a.logMu.Unlock()
+
+	if a.logger == nil || err == nil {
+		return
+	}
+
+	var apiErr genai.APIError
+	var entry string
+	if errors.As(err, &apiErr) {
+		entry = fmt.Sprintf("AI request failed operation=%s model=%s code=%d status=%q message=%q", operation, model, apiErr.Code, apiErr.Status, apiErr.Message)
+	} else {
+		entry = fmt.Sprintf("AI request failed operation=%s model=%s error=%q", operation, model, err.Error())
+		if rawResponse := strings.Index(entry, ". Raw:"); rawResponse >= 0 {
+			entry = entry[:rawResponse] + ". raw response omitted"
+		}
+	}
+	if len(entry) > maxLogEntryBytes {
+		entry = strings.ToValidUTF8(entry[:maxLogEntryBytes-15], "�") + " [truncated]"
+	}
+
+	if a.logFile != nil {
+		info, statErr := a.logFile.Stat()
+		if statErr != nil {
+			log.Printf("helaix: inspect log file before append: %v", statErr)
+			return
+		}
+		if info.Size()+int64(len(entry))+64 > maxLogBytes {
+			if truncateErr := a.logFile.Truncate(0); truncateErr != nil {
+				log.Printf("helaix: rotate log file before append: %v", truncateErr)
+				return
+			}
+		}
+	}
+	a.logger.Print(entry)
 }
 
 // startup is called when the app starts. The context is saved
@@ -47,7 +128,7 @@ func (a *App) GxSaveConfig(cfg config.AppConfig) string {
 	return ""
 }
 
-// GxChatSoundEngineer calls the Sound Engineer Agent with history
+// GxChatSoundEngineer calls the design agent and logs failures without storing prompt content.
 func (a *App) GxChatSoundEngineer(history []gemini.ChatMessage) (*gemini.RigDescription, error) {
 	cfg := a.config.Get()
 	if cfg.ApiKey == "" {
@@ -60,10 +141,14 @@ func (a *App) GxChatSoundEngineer(history []gemini.ChatMessage) (*gemini.RigDesc
 	}
 	defer client.Close()
 
-	return client.ChatSoundEngineer(a.ctx, history, cfg.VariaxHardwareModel, cfg.DefaultInstrument, cfg.VariaxEnabled)
+	result, err := client.ChatSoundEngineer(a.ctx, history, cfg.VariaxHardwareModel, cfg.DefaultInstrument, cfg.VariaxEnabled)
+	if err != nil {
+		a.logAIError("sound_engineer", cfg.Model, err)
+	}
+	return result, err
 }
 
-// GxChatPresetEngineer calls the Preset Engineer Agent with history and baseline rig
+// GxChatPresetEngineer builds or refines a preset and logs failures without storing prompt content.
 func (a *App) GxChatPresetEngineer(rig gemini.RigDescription, presetName string, history []gemini.ChatMessage) (*helix.Preset, error) {
 	cfg := a.config.Get()
 	if cfg.ApiKey == "" {
@@ -76,7 +161,117 @@ func (a *App) GxChatPresetEngineer(rig gemini.RigDescription, presetName string,
 	}
 	defer client.Close()
 
-	return client.ChatPresetEngineer(a.ctx, &rig, presetName, history, cfg.HardwareTarget, cfg.DefaultExpPedal, cfg.VariaxEnabled, cfg.VariaxHardwareModel, cfg.DefaultInstrument)
+	result, err := client.ChatPresetEngineer(a.ctx, &rig, presetName, history, cfg.HardwareTarget, cfg.DefaultExpPedal, cfg.VariaxEnabled, cfg.VariaxHardwareModel, cfg.DefaultInstrument)
+	if err != nil {
+		a.logAIError("preset_engineer", cfg.Model, err)
+	}
+	return result, err
+}
+
+// GxGetLogPath returns the local log path or its initialization error.
+func (a *App) GxGetLogPath() (string, error) {
+	if a.logInitErr != nil {
+		return a.logPath, fmt.Errorf("application log is unavailable: %w", a.logInitErr)
+	}
+	return a.logPath, nil
+}
+
+// GxReadLog returns the most recent log lines for troubleshooting.
+func (a *App) GxReadLog(maxLines int) (string, error) {
+	if maxLines <= 0 || maxLines > 500 {
+		maxLines = 200
+	}
+
+	a.logMu.Lock()
+	defer a.logMu.Unlock()
+
+	if a.logInitErr != nil {
+		return "", fmt.Errorf("application log is unavailable: %w", a.logInitErr)
+	}
+	if a.logPath == "" {
+		return "", fmt.Errorf("application log path is unavailable")
+	}
+
+	file, err := os.Open(a.logPath)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return "", nil
+		}
+		return "", err
+	}
+	defer file.Close()
+
+	info, err := file.Stat()
+	if err != nil {
+		return "", err
+	}
+	if info.Size() == 0 {
+		return "", nil
+	}
+
+	start := info.Size() - maxLogBytes
+	if start < 0 {
+		start = 0
+	}
+	position := info.Size()
+	lineBreaks := 0
+	chunks := make([][]byte, 0)
+	for position > start && lineBreaks <= maxLines {
+		chunkSize := int64(logReadChunkBytes)
+		if position-start < chunkSize {
+			chunkSize = position - start
+		}
+		position -= chunkSize
+		chunk := make([]byte, int(chunkSize))
+		read, readErr := file.ReadAt(chunk, position)
+		if readErr != nil && !errors.Is(readErr, io.EOF) {
+			return "", readErr
+		}
+		chunk = chunk[:read]
+		lineBreaks += bytes.Count(chunk, []byte{'\n'})
+		chunks = append(chunks, chunk)
+	}
+
+	data := make([]byte, 0, int(info.Size()-position))
+	for i := len(chunks) - 1; i >= 0; i-- {
+		data = append(data, chunks[i]...)
+	}
+	if position > 0 {
+		previousByte := []byte{0}
+		if _, readErr := file.ReadAt(previousByte, position-1); readErr != nil && !errors.Is(readErr, io.EOF) {
+			return "", readErr
+		}
+		if previousByte[0] != '\n' {
+			if firstLineBreak := bytes.IndexByte(data, '\n'); firstLineBreak >= 0 {
+				data = data[firstLineBreak+1:]
+			} else {
+				data = nil
+			}
+		}
+	}
+	data = bytes.TrimRight(data, "\r\n")
+	if len(data) == 0 {
+		return "", nil
+	}
+	lines := bytes.Split(data, []byte{'\n'})
+	if len(lines) > maxLines {
+		lines = lines[len(lines)-maxLines:]
+	}
+	return string(bytes.Join(lines, []byte{'\n'})), nil
+}
+
+// GxClearLog removes the local log contents while keeping the log file available.
+func (a *App) GxClearLog() error {
+	a.logMu.Lock()
+	defer a.logMu.Unlock()
+
+	if a.logInitErr != nil {
+		return fmt.Errorf("application log is unavailable: %w", a.logInitErr)
+	}
+	if a.logPath == "" {
+		return fmt.Errorf("application log path is unavailable")
+	}
+	return os.Truncate(a.logPath, 0)
 }
 
 // GxSaveFile saves the preset to the disk and returns the full path
@@ -123,7 +318,7 @@ func (a *App) GxSaveFile(preset helix.Preset, filename string) (string, error) {
 	return fullPath, err
 }
 
-// GxListModels returns the available models from the provider
+// GxListModels lists generation-capable models and logs provider request failures.
 func (a *App) GxListModels(apiKey string, modelName string) ([]string, error) {
 	if apiKey == "" {
 		return []string{}, nil
@@ -143,6 +338,7 @@ func (a *App) GxListModels(apiKey string, modelName string) ([]string, error) {
 
 	models, err := client.ListModels(a.ctx)
 	if err != nil {
+		a.logAIError("list_models", modelName, err)
 		return nil, err
 	}
 
@@ -176,7 +372,7 @@ func (a *App) GxGetDefaultOutputPath() string {
 	return filepath.Join(homeDir, "Documents", "helaix")
 }
 
-// GxTestConnection validates the API key by listing models
+// GxTestConnection validates the API key by listing models and logs provider failures.
 func (a *App) GxTestConnection(apiKey string, modelName string) (string, error) {
 	if apiKey == "" {
 		return "", fmt.Errorf("API Key is missing")
@@ -196,6 +392,7 @@ func (a *App) GxTestConnection(apiKey string, modelName string) (string, error) 
 
 	models, err := client.ListModels(a.ctx)
 	if err != nil {
+		a.logAIError("test_connection", modelName, err)
 		return "", err
 	}
 

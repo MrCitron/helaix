@@ -11,7 +11,7 @@ import (
 	"google.golang.org/genai"
 )
 
-// ChatPresetEngineer takes the abstract rig and maps it to specific Helix Blocks, or refines an existing implementation
+// ChatPresetEngineer maps an abstract rig to Helix blocks and preserves provider errors for caller diagnostics.
 func (c *Client) ChatPresetEngineer(ctx context.Context, rig *RigDescription, presetName string, history []ChatMessage, hardware string, defaultExp int, variaxEnabled bool, hardwareModel string, defaultInstrument string) (*helix.Preset, error) {
 	// 1. Prepare Catalog Context
 	helix.DB.EnsureLoaded()
@@ -133,7 +133,7 @@ func (c *Client) ChatPresetEngineer(ctx context.Context, rig *RigDescription, pr
 
 	resp, err := c.client.Models.GenerateContent(ctx, c.ModelName, contents, config)
 	if err != nil {
-		return nil, fmt.Errorf("preset engineer agent failed: %v", err)
+		return nil, fmt.Errorf("preset engineer agent failed: %w", err)
 	}
 
 	if len(resp.Candidates) == 0 || len(resp.Candidates[0].Content.Parts) == 0 {

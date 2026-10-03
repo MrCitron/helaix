@@ -36,7 +36,7 @@ type Snapshot struct {
 	Params       map[string]interface{} `json:"params,omitempty"` // BlockName -> { "Param": Value }
 }
 
-// ChatSoundEngineer creates or refines the abstract sound design based on discussion history
+// ChatSoundEngineer creates or refines a rig and wraps provider errors so callers can inspect HTTP status details.
 func (c *Client) ChatSoundEngineer(ctx context.Context, history []ChatMessage, hardwareModel string, defaultInstrument string, variaxEnabled bool) (*RigDescription, error) {
 	// Prompt engineering for Sound Engineer Agent
 	sysPrompt := fmt.Sprintf(`You are a world-class Sound Engineer and guitar/bass technician.
@@ -144,7 +144,7 @@ func (c *Client) ChatSoundEngineer(ctx context.Context, history []ChatMessage, h
 
 	resp, err := c.client.Models.GenerateContent(ctx, c.ModelName, contents, config)
 	if err != nil {
-		return nil, fmt.Errorf("sound engineer agent failed: %v", err)
+		return nil, fmt.Errorf("sound engineer agent failed: %w", err)
 	}
 
 	if len(resp.Candidates) == 0 || len(resp.Candidates[0].Content.Parts) == 0 {
