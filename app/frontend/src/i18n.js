@@ -28,6 +28,7 @@ const translations = {
             errors: {
                 ia: "AI might make mistakes. Always check output levels before playing."
             },
+            viewDiagnostics: "View diagnostics",
             deleteChat: "Delete Chat",
             deleteConfirmTitle: "Delete Chat?",
             deleteConfirmMsg: "Are you sure you want to delete this conversation? This action cannot be undone.",
@@ -95,7 +96,20 @@ const translations = {
                 jazzbox: "Jazzbox",
                 acoustic: "Acoustic",
                 reso: "Reso/Other"
-            }
+            },
+            diagnostics: "Diagnostics",
+            diagnosticsHint: "Inspect recent application errors without exposing your API key or prompts.",
+            showLogs: "View logs",
+            hideLogs: "Hide logs",
+            refreshLogs: "Refresh",
+            copyLogs: "Copy logs",
+            clearLogs: "Clear logs",
+            openLogFolder: "Open folder",
+            logsCopied: "Logs copied",
+            confirmClearLogs: "Clear the application log?",
+            noLogs: "No log entries yet.",
+            logWarning: "Check the content before sharing it with support.",
+            logPath: "Log file"
         }
     },
     fr: {
@@ -125,6 +139,7 @@ const translations = {
             errors: {
                 ia: "L'IA peut faire des erreurs. Vérifiez toujours vos niveaux de sortie avant de jouer."
             },
+            viewDiagnostics: "Voir le diagnostic",
             deleteChat: "Supprimer le Chat",
             deleteConfirmTitle: "Supprimer le Chat ?",
             deleteConfirmMsg: "Êtes-vous sûr de vouloir supprimer cette conversation ? Cette action est irréversible.",
@@ -192,7 +207,20 @@ const translations = {
                 jazzbox: "Jazzbox",
                 acoustic: "Acoustic",
                 reso: "Reso/Autre"
-            }
+            },
+            diagnostics: "Diagnostic",
+            diagnosticsHint: "Consultez les erreurs récentes sans exposer votre clé API ni vos prompts.",
+            showLogs: "Afficher les logs",
+            hideLogs: "Masquer les logs",
+            refreshLogs: "Actualiser",
+            copyLogs: "Copier les logs",
+            clearLogs: "Effacer les logs",
+            openLogFolder: "Ouvrir le dossier",
+            logsCopied: "Logs copiés",
+            confirmClearLogs: "Effacer le fichier de log de l’application ?",
+            noLogs: "Aucune entrée de log pour le moment.",
+            logWarning: "Vérifiez le contenu avant de le partager avec le support.",
+            logPath: "Fichier de log"
         }
     }
 };

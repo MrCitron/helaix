@@ -8,15 +8,21 @@ export function GxChatPresetEngineer(arg1:gemini.RigDescription,arg2:string,arg3
 
 export function GxChatSoundEngineer(arg1:Array<gemini.ChatMessage>):Promise<gemini.RigDescription>;
 
+export function GxClearLog():Promise<void>;
+
 export function GxGetConfig():Promise<config.AppConfig>;
 
 export function GxGetDefaultOutputPath():Promise<string>;
+
+export function GxGetLogPath():Promise<string>;
 
 export function GxListModels(arg1:string,arg2:string):Promise<Array<string>>;
 
 export function GxOpenFolderOfFile(arg1:string):Promise<void>;
 
 export function GxOpenPath(arg1:string):Promise<void>;
+
+export function GxReadLog(arg1:number):Promise<string>;
 
 export function GxSaveConfig(arg1:config.AppConfig):Promise<string>;
 

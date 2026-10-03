@@ -6,7 +6,7 @@ import MessageVisualizer from './MessageVisualizer';
 import ChatInput from './ChatInput';
 import ExportModal from './ExportModal';
 
-const MainScreen = ({ config, chatData, onUpdateChat, onNewChat }) => {
+const MainScreen = ({ config, chatData, onUpdateChat, onNewChat, onOpenSettings }) => {
     const { t } = useI18n();
     const [loading, setLoading] = React.useState(false);
     const [showExportModal, setShowExportModal] = React.useState(false);
@@ -222,7 +222,11 @@ const MainScreen = ({ config, chatData, onUpdateChat, onNewChat }) => {
 
                                         {msg.error && (
                                             <div className="text-red-400 bg-red-900/20 p-2 rounded border border-red-900/50 text-sm">
-                                                {msg.error}
+                                                <p>{msg.error}</p>
+                                                <button onClick={onOpenSettings} className="mt-2 inline-flex items-center gap-1 text-xs text-primary hover:underline">
+                                                    <span className="material-symbols-outlined text-[16px]">bug_report</span>
+                                                    {t('chat.viewDiagnostics')}
+                                                </button>
                                             </div>
                                         )}
                                     </div>

@@ -10,12 +10,20 @@ export function GxChatSoundEngineer(arg1) {
   return window['go']['main']['App']['GxChatSoundEngineer'](arg1);
 }
 
+export function GxClearLog() {
+  return window['go']['main']['App']['GxClearLog']();
+}
+
 export function GxGetConfig() {
   return window['go']['main']['App']['GxGetConfig']();
 }
 
 export function GxGetDefaultOutputPath() {
   return window['go']['main']['App']['GxGetDefaultOutputPath']();
+}
+
+export function GxGetLogPath() {
+  return window['go']['main']['App']['GxGetLogPath']();
 }
 
 export function GxListModels(arg1, arg2) {
@@ -28,6 +36,10 @@ export function GxOpenFolderOfFile(arg1) {
 
 export function GxOpenPath(arg1) {
   return window['go']['main']['App']['GxOpenPath'](arg1);
+}
+
+export function GxReadLog(arg1) {
+  return window['go']['main']['App']['GxReadLog'](arg1);
 }
 
 export function GxSaveConfig(arg1) {

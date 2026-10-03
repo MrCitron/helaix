@@ -164,6 +164,7 @@ function App() {
                         chatData={currentChat}
                         onUpdateChat={updateCurrentChat}
                         onNewChat={createNewChat}
+                        onOpenSettings={() => setView('settings')}
                     />
                 )}
                 {view === 'settings' && <Settings config={config || {}} onSave={handleConfigSave} />}

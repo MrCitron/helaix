@@ -144,7 +144,7 @@ func (c *Client) ChatSoundEngineer(ctx context.Context, history []ChatMessage, h
 
 	resp, err := c.client.Models.GenerateContent(ctx, c.ModelName, contents, config)
 	if err != nil {
-		return nil, fmt.Errorf("sound engineer agent failed: %v", err)
+		return nil, fmt.Errorf("sound engineer agent failed: %w", err)
 	}
 
 	if len(resp.Candidates) == 0 || len(resp.Candidates[0].Content.Parts) == 0 {

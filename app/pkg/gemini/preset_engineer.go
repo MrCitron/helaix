@@ -133,7 +133,7 @@ func (c *Client) ChatPresetEngineer(ctx context.Context, rig *RigDescription, pr
 
 	resp, err := c.client.Models.GenerateContent(ctx, c.ModelName, contents, config)
 	if err != nil {
-		return nil, fmt.Errorf("preset engineer agent failed: %v", err)
+		return nil, fmt.Errorf("preset engineer agent failed: %w", err)
 	}
 
 	if len(resp.Candidates) == 0 || len(resp.Candidates[0].Content.Parts) == 0 {

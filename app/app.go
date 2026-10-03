@@ -6,25 +6,68 @@ import (
 	"HelAIx/pkg/helix"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
+	"log"
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
 
 	"github.com/wailsapp/wails/v2/pkg/runtime"
+	"google.golang.org/genai"
 )
 
 // App struct
 type App struct {
-	ctx    context.Context
-	config *config.Manager
+	ctx     context.Context
+	config  *config.Manager
+	logger  *log.Logger
+	logPath string
+	logMu   sync.Mutex
 }
 
 // NewApp creates a new App application struct
 func NewApp() *App {
-	return &App{
+	app := &App{
 		config: config.NewManager(),
 	}
+	app.logger, app.logPath = newAppLogger()
+	return app
+}
+
+func newAppLogger() (*log.Logger, string) {
+	configDir, err := os.UserConfigDir()
+	if err != nil {
+		return log.New(os.Stderr, "helaix ", log.LstdFlags), ""
+	}
+
+	logPath := filepath.Join(configDir, "helaix", "helaix.log")
+	if err := os.MkdirAll(filepath.Dir(logPath), 0700); err != nil {
+		return log.New(os.Stderr, "helaix ", log.LstdFlags), ""
+	}
+
+	file, err := os.OpenFile(logPath, os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0600)
+	if err != nil {
+		return log.New(os.Stderr, "helaix ", log.LstdFlags), ""
+	}
+	return log.New(file, "helaix ", log.LstdFlags), logPath
+}
+
+func (a *App) logAIError(operation string, model string, err error) {
+	a.logMu.Lock()
+	defer a.logMu.Unlock()
+
+	if a.logger == nil {
+		return
+	}
+
+	var apiErr genai.APIError
+	if errors.As(err, &apiErr) {
+		a.logger.Printf("AI request failed operation=%s model=%s code=%d status=%q message=%q", operation, model, apiErr.Code, apiErr.Status, apiErr.Message)
+		return
+	}
+	a.logger.Printf("AI request failed operation=%s model=%s error=%q", operation, model, err.Error())
 }
 
 // startup is called when the app starts. The context is saved
@@ -60,7 +103,11 @@ func (a *App) GxChatSoundEngineer(history []gemini.ChatMessage) (*gemini.RigDesc
 	}
 	defer client.Close()
 
-	return client.ChatSoundEngineer(a.ctx, history, cfg.VariaxHardwareModel, cfg.DefaultInstrument, cfg.VariaxEnabled)
+	result, err := client.ChatSoundEngineer(a.ctx, history, cfg.VariaxHardwareModel, cfg.DefaultInstrument, cfg.VariaxEnabled)
+	if err != nil {
+		a.logAIError("sound_engineer", cfg.Model, err)
+	}
+	return result, err
 }
 
 // GxChatPresetEngineer calls the Preset Engineer Agent with history and baseline rig
@@ -76,7 +123,51 @@ func (a *App) GxChatPresetEngineer(rig gemini.RigDescription, presetName string,
 	}
 	defer client.Close()
 
-	return client.ChatPresetEngineer(a.ctx, &rig, presetName, history, cfg.HardwareTarget, cfg.DefaultExpPedal, cfg.VariaxEnabled, cfg.VariaxHardwareModel, cfg.DefaultInstrument)
+	result, err := client.ChatPresetEngineer(a.ctx, &rig, presetName, history, cfg.HardwareTarget, cfg.DefaultExpPedal, cfg.VariaxEnabled, cfg.VariaxHardwareModel, cfg.DefaultInstrument)
+	if err != nil {
+		a.logAIError("preset_engineer", cfg.Model, err)
+	}
+	return result, err
+}
+
+// GxGetLogPath returns the local application log path for troubleshooting.
+func (a *App) GxGetLogPath() string {
+	return a.logPath
+}
+
+// GxReadLog returns the most recent log lines for troubleshooting.
+func (a *App) GxReadLog(maxLines int) (string, error) {
+	if maxLines <= 0 || maxLines > 500 {
+		maxLines = 200
+	}
+
+	a.logMu.Lock()
+	defer a.logMu.Unlock()
+
+	data, err := os.ReadFile(a.logPath)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return "", nil
+		}
+		return "", err
+	}
+
+	lines := strings.Split(strings.TrimRight(string(data), "\r\n"), "\n")
+	if len(lines) > maxLines {
+		lines = lines[len(lines)-maxLines:]
+	}
+	return strings.Join(lines, "\n"), nil
+}
+
+// GxClearLog removes the local log contents while keeping the log file available.
+func (a *App) GxClearLog() error {
+	a.logMu.Lock()
+	defer a.logMu.Unlock()
+
+	if a.logPath == "" {
+		return nil
+	}
+	return os.Truncate(a.logPath, 0)
 }
 
 // GxSaveFile saves the preset to the disk and returns the full path
@@ -143,6 +234,7 @@ func (a *App) GxListModels(apiKey string, modelName string) ([]string, error) {
 
 	models, err := client.ListModels(a.ctx)
 	if err != nil {
+		a.logAIError("list_models", modelName, err)
 		return nil, err
 	}
 
@@ -196,6 +288,7 @@ func (a *App) GxTestConnection(apiKey string, modelName string) (string, error) 
 
 	models, err := client.ListModels(a.ctx)
 	if err != nil {
+		a.logAIError("test_connection", modelName, err)
 		return "", err
 	}
 

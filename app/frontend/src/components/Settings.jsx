@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useI18n } from '../i18n';
-import { GxSaveConfig, GxTestConnection, GxSelectFolder, GxGetDefaultOutputPath, GxListModels } from '../../wailsjs/go/main/App';
+import { GxSaveConfig, GxTestConnection, GxSelectFolder, GxGetDefaultOutputPath, GxListModels, GxGetLogPath, GxReadLog, GxClearLog, GxOpenFolderOfFile } from '../../wailsjs/go/main/App';
 import { HelixIcons } from './IconLibrary';
 
 const Settings = ({ config, onSave }) => {
@@ -12,6 +12,11 @@ const Settings = ({ config, onSave }) => {
     const [defaultPath, setDefaultPath] = useState('');
     const [availableModels, setAvailableModels] = useState([]);
     const [loadingModels, setLoadingModels] = useState(false);
+    const [showLogs, setShowLogs] = useState(false);
+    const [logContent, setLogContent] = useState('');
+    const [logPath, setLogPath] = useState('');
+    const [loadingLogs, setLoadingLogs] = useState(false);
+    const [logsCopied, setLogsCopied] = useState(false);
 
     useEffect(() => {
         const fetchDefault = async () => {
@@ -84,6 +89,39 @@ const Settings = ({ config, onSave }) => {
             // Keep error status visible for 5 seconds
             setTimeout(() => setTestStatus(''), 5000);
         }
+    };
+
+    const refreshLogs = async () => {
+        setLoadingLogs(true);
+        try {
+            const [path, content] = await Promise.all([GxGetLogPath(), GxReadLog(200)]);
+            setLogPath(path || '');
+            setLogContent(content || '');
+        } catch (err) {
+            setLogContent(`Unable to read log: ${err}`);
+        } finally {
+            setLoadingLogs(false);
+        }
+    };
+
+    const handleToggleLogs = async () => {
+        const nextShowLogs = !showLogs;
+        setShowLogs(nextShowLogs);
+        if (nextShowLogs) {
+            await refreshLogs();
+        }
+    };
+
+    const handleCopyLogs = async () => {
+        await navigator.clipboard.writeText(logContent);
+        setLogsCopied(true);
+        setTimeout(() => setLogsCopied(false), 2000);
+    };
+
+    const handleClearLogs = async () => {
+        if (!window.confirm(t('settings.confirmClearLogs'))) return;
+        await GxClearLog();
+        setLogContent('');
     };
 
     const handleBrowse = async () => {
@@ -447,6 +485,47 @@ const Settings = ({ config, onSave }) => {
                                 </button>
                             </div>
                         </div>
+                    </div>
+                </section>
+
+                {/* Diagnostics Section */}
+                <section className="flex flex-col gap-4">
+                    <div className="px-4 pb-2 pt-4 border-b border-border-light dark:border-border-dark flex items-center gap-3">
+                        <span className="material-symbols-outlined text-primary">bug_report</span>
+                        <h2 className="text-xl font-bold leading-tight tracking-tight">{t('settings.diagnostics')}</h2>
+                    </div>
+
+                    <div className="px-4 py-2 flex flex-col gap-3">
+                        <p className="text-sm text-text-muted">{t('settings.diagnosticsHint')}</p>
+                        <div className="flex flex-wrap gap-3">
+                            <button onClick={handleToggleLogs} className="flex items-center gap-2 h-10 px-4 rounded-lg bg-primary/10 hover:bg-primary/20 text-primary border border-primary/20 transition-all font-medium text-sm">
+                                <span className="material-symbols-outlined">{showLogs ? 'visibility_off' : 'visibility'}</span>
+                                {t(showLogs ? 'settings.hideLogs' : 'settings.showLogs')}
+                            </button>
+                            {logPath && <button onClick={() => GxOpenFolderOfFile(logPath)} className="flex items-center gap-2 h-10 px-4 rounded-lg border border-border-light dark:border-border-dark hover:border-primary hover:text-primary transition-all font-medium text-sm">
+                                <span className="material-symbols-outlined">folder_open</span>
+                                {t('settings.openLogFolder')}
+                            </button>}
+                        </div>
+                        {showLogs && <div className="flex flex-col gap-3">
+                            <p className="text-xs text-text-muted font-mono break-all">{t('settings.logPath')}: {logPath}</p>
+                            <pre className="min-h-32 max-h-72 overflow-auto rounded-lg border border-border-light dark:border-border-dark bg-slate-100 dark:bg-[#111719] p-4 text-xs text-slate-700 dark:text-slate-300 whitespace-pre-wrap font-mono">{loadingLogs ? '...' : logContent || t('settings.noLogs')}</pre>
+                            <p className="text-xs text-amber-500">{t('settings.logWarning')}</p>
+                            <div className="flex flex-wrap gap-3">
+                                <button onClick={refreshLogs} disabled={loadingLogs} className="flex items-center gap-2 h-9 px-3 rounded-lg border border-border-light dark:border-border-dark hover:border-primary hover:text-primary transition-all text-sm disabled:opacity-50">
+                                    <span className={`material-symbols-outlined text-[18px] ${loadingLogs ? 'animate-spin' : ''}`}>sync</span>
+                                    {t('settings.refreshLogs')}
+                                </button>
+                                <button onClick={handleCopyLogs} disabled={!logContent} className="flex items-center gap-2 h-9 px-3 rounded-lg border border-border-light dark:border-border-dark hover:border-primary hover:text-primary transition-all text-sm disabled:opacity-50">
+                                    <span className="material-symbols-outlined text-[18px]">content_copy</span>
+                                    {logsCopied ? t('settings.logsCopied') : t('settings.copyLogs')}
+                                </button>
+                                <button onClick={handleClearLogs} className="flex items-center gap-2 h-9 px-3 rounded-lg border border-red-500/40 text-red-400 hover:bg-red-500/10 transition-all text-sm">
+                                    <span className="material-symbols-outlined text-[18px]">delete</span>
+                                    {t('settings.clearLogs')}
+                                </button>
+                            </div>
+                        </div>}
                     </div>
                 </section>
 
